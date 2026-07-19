@@ -1,0 +1,9 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-kube-apiserver
+  namespace: picsou-finance
+spec:
+  endpointSelector: {}
+  egress:
+    - toEntities: [kube-apiserver]

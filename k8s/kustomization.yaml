@@ -11,3 +11,4 @@ resources:
   - ingress.yaml
   - certificate.yaml
   - network-policy.yaml
+  - cilium-network-policy.yaml
