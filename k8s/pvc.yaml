@@ -2,7 +2,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: picsou-data
-  namespace: picsou
+  namespace: picsou-finance
 spec:
   accessModes: [ReadWriteOnce]
   resources:

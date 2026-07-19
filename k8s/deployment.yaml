@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: picsou
-  namespace: picsou
+  namespace: picsou-finance
   labels:
     app.kubernetes.io/name: picsou
     app.kubernetes.io/component: app

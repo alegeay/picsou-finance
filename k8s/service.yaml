@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: picsou
-  namespace: picsou
+  namespace: picsou-finance
 spec:
   type: ClusterIP
   selector:
@@ -16,7 +16,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: picsou-tr-auth
-  namespace: picsou
+  namespace: picsou-finance
 spec:
   type: ClusterIP
   selector:

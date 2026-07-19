@@ -2,7 +2,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: default-deny
-  namespace: picsou
+  namespace: picsou-finance
 spec:
   podSelector: {}
   policyTypes: [Ingress, Egress]
@@ -11,7 +11,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-picsou
-  namespace: picsou
+  namespace: picsou-finance
 spec:
   podSelector:
     matchLabels:
@@ -62,7 +62,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-tr-auth
-  namespace: picsou
+  namespace: picsou-finance
 spec:
   podSelector:
     matchLabels:

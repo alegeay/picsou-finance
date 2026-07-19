@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: picsou-tr-auth
-  namespace: picsou
+  namespace: picsou-finance
   labels:
     app.kubernetes.io/name: picsou-tr-auth
     app.kubernetes.io/component: sidecar
