@@ -27,9 +27,9 @@ spec:
           image: ghcr.io/zoeille/picsou-finance:1.0.14
           imagePullPolicy: IfNotPresent
           securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop: [ALL]
+            # The upstream all-in-one image runs supervisord as root and
+            # starts nginx, which needs its normal startup privileges.
+            allowPrivilegeEscalation: true
           ports:
             - name: http
               containerPort: 8080
