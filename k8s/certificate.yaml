@@ -1,0 +1,18 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: picsou-tls
+  namespace: picsou
+spec:
+  secretName: picsou-tls
+  commonName: picsou.legeay.corp
+  dnsNames:
+    - picsou.legeay.corp
+  privateKey:
+    algorithm: RSA
+    size: 4096
+  duration: 2160h
+  renewBefore: 360h
+  issuerRef:
+    name: openbao-pki-legeay-corp
+    kind: ClusterIssuer

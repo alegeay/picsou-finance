@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: picsou
+  namespace: picsou
+  labels:
+    app.kubernetes.io/name: picsou
+    app.kubernetes.io/component: app
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: picsou
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: picsou
+        app.kubernetes.io/component: app
+    spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: picsou
+          image: ghcr.io/zoeille/picsou-finance:1.0.14
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: prod
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://picsou-db-rw:5432/picsou?sslmode=prefer
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: picsou-db-credentials
+                  key: username
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: picsou-db-credentials
+                  key: password
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: picsou-app-secrets
+                  key: jwt-secret
+            - name: CRYPTO_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: picsou-app-secrets
+                  key: crypto-encryption-key
+            - name: SECURE_COOKIES
+              value: "true"
+            - name: BOURSO_AUTH_URL
+              value: http://picsou-tr-auth:8001
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: picsou-data

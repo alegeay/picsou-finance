@@ -1,0 +1,25 @@
+# Internal-only: deliberately no external-dns public target annotation.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: picsou
+  namespace: picsou
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "25m"
+spec:
+  ingressClassName: nginx-internal
+  tls:
+    - hosts:
+        - picsou.legeay.corp
+      secretName: picsou-tls
+  rules:
+    - host: picsou.legeay.corp
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: picsou
+                port:
+                  number: 80
