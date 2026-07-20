@@ -27,6 +27,8 @@ spec:
           securityContext:
             allowPrivilegeEscalation: false
             runAsNonRoot: true
+            runAsUser: 997
+            runAsGroup: 997
             capabilities:
               drop: [ALL]
           ports:
