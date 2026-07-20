@@ -22,7 +22,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: bourse-direct-auth
-          image: registry.alexislegeay.fr:5000/web/picsou-finance/bourse-direct-auth:bd-test-20260720-14
+          image: registry.alexislegeay.fr:5000/web/picsou-finance/bourse-direct-auth:bd-test-20260720-15
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false
