@@ -25,3 +25,17 @@ spec:
     - name: http
       port: 8001
       targetPort: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: picsou-bourse-direct-auth
+  namespace: picsou-finance
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: picsou-bourse-direct-auth
+  ports:
+    - name: http
+      port: 8001
+      targetPort: http

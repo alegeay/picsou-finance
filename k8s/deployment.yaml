@@ -24,7 +24,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: picsou
-          image: ghcr.io/zoeille/picsou-finance:1.0.14
+          image: registry.alexislegeay.fr:5000/web/picsou-finance/app:bd-test-20260720
           imagePullPolicy: IfNotPresent
           securityContext:
             # The upstream all-in-one image runs supervisord as root and
@@ -62,6 +62,8 @@ spec:
               value: "true"
             - name: BOURSO_AUTH_URL
               value: http://picsou-tr-auth:8001
+            - name: BOURSE_DIRECT_AUTH_URL
+              value: http://picsou-bourse-direct-auth:8001
           resources:
             requests:
               cpu: 100m

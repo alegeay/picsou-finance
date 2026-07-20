@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: picsou-bourse-direct-auth
+  namespace: picsou-finance
+  labels:
+    app.kubernetes.io/name: picsou-bourse-direct-auth
+    app.kubernetes.io/component: sidecar
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: picsou-bourse-direct-auth
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: picsou-bourse-direct-auth
+        app.kubernetes.io/component: sidecar
+    spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: bourse-direct-auth
+          image: registry.alexislegeay.fr:5000/web/picsou-finance/bourse-direct-auth:bd-test-20260720
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            capabilities:
+              drop: [ALL]
+          ports:
+            - name: http
+              containerPort: 8001
+          resources:
+            requests:
+              cpu: 50m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 30
