@@ -1,0 +1,144 @@
+spring:
+  application:
+    name: picsou
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/picsou}
+    username: ${SPRING_DATASOURCE_USERNAME:picsou}
+    password: ${SPRING_DATASOURCE_PASSWORD:picsou}
+    hikari:
+      maximum-pool-size: 10
+      connection-timeout: 30000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate   # Flyway owns the schema
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+        default_schema: public
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+    # Allow migrations to apply even if a lower version number lands later
+    # (branches are numbered independently, e.g. this feature's V50 may deploy
+    # before the 1.1.0 branch's V33-V47). Without this, validate-on-migrate
+    # rejects the out-of-order migrations and the app fails to start.
+    out-of-order: true
+
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      fail-on-unknown-properties: false
+    default-property-inclusion: non_null
+
+  servlet:
+    multipart:
+      # 10MB accommodates multi-year CSV transaction histories; the import endpoint is
+      # member-scoped and IP-throttled, so this does not widen the abuse surface.
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+  # Embedded MCP server (Model Context Protocol). Transport is HTTP+SSE — the only transport
+  # Spring AI 1.0.3 / MCP SDK 0.10.0 ship (there is no Streamable HTTP on this version). Both
+  # the SSE stream (GET /mcp) and the message channel (POST /mcp/message) live under /mcp/** so
+  # AccessKeyAuthFilter gates them and a `psk_` key can never reach /api/** (security Property A).
+  ai:
+    mcp:
+      server:
+        enabled: ${MCP_ENABLED:true}
+        stdio: false
+        type: SYNC
+        name: picsou
+        version: ${APP_VERSION:dev}
+        instructions: >-
+          Picsou personal-finance MCP server. Every tool operates only on the financial data of
+          the member who owns the access-key used to authenticate: it can never read or modify
+          another member's data, and it cannot perform authentication, credential, admin,
+          member-management, MFA, or data-export operations. Monetary values are in each account's
+          own currency unless the field name ends in "Eur".
+        sse-endpoint: /mcp
+        sse-message-endpoint: /mcp/message
+        request-timeout: 30s
+        capabilities:
+          tool: true
+          resource: false
+          prompt: false
+          completion: false
+
+server:
+  port: 8080
+  # Trust X-Forwarded-* from the local nginx so request scheme/host/port reflect the
+  # public-facing values when running behind a TLS-terminating reverse proxy. Without
+  # this, request.getScheme() stays "http" and Spring's CorsUtils.isCorsRequest() wrongly
+  # classifies genuinely same-origin HTTPS requests as cross-origin, rejecting them with
+  # 403. "framework" (Spring's ForwardedHeaderFilter) is used because the backend is only
+  # reachable through nginx — no per-IP trusted-proxy config needed — and it is a no-op
+  # when no X-Forwarded-* headers are present (dev / direct-HTTP access).
+  forward-headers-strategy: framework
+  error:
+    include-stacktrace: never     # never expose stack traces to clients
+    include-message: never
+  compression:
+    enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: never
+  info:
+    # Expose `info.*` properties (below) via /actuator/info. The env info
+    # contributor is disabled by default since Spring Boot 2.6, so without this
+    # the app.version block would never surface.
+    env:
+      enabled: true
+
+info:
+  app:
+    name: picsou
+    version: ${APP_VERSION:dev}
+
+app:
+  admin-recovery:
+    enabled: ${ADMIN_RECOVERY_ENABLED:false}
+  public-base-url: ${PUBLIC_BASE_URL:http://localhost:5173}
+  jwt:
+    secret: ${JWT_SECRET}
+    access-token-expiry-minutes: 15
+    refresh-token-expiry-days: 7
+  user:
+    username: ${APP_USERNAME:}
+    password-hash: ${APP_PASSWORD_HASH:}
+  cors:
+    allowed-origins: ${ALLOWED_ORIGINS:}
+  secure-cookies: ${SECURE_COOKIES:true}
+  # Strict-Transport-Security. Off by default and read from the same env var as the
+  # nginx-side gate (docker/entrypoint.sh), so one flag controls the header on both
+  # the SPA/static responses and the /api responses. Enable only behind a
+  # publicly-trusted certificate — see docs/features/docker-deployment.md.
+  hsts-enabled: ${HSTS_ENABLED:false}
+  crypto:
+    encryption-key: ${CRYPTO_ENCRYPTION_KEY:}
+  tr-auth:
+    url: ${TR_AUTH_URL:http://tr-auth:8001}
+  bourso-auth:
+    url: ${BOURSO_AUTH_URL:http://bourso-auth:8001}
+  bourse-direct-auth:
+    url: ${BOURSE_DIRECT_AUTH_URL:http://bourse-direct-auth:8001}
+  enablebanking:
+    application-id: ${ENABLEBANKING_APPLICATION_ID:}
+    key-id: ${ENABLEBANKING_KEY_ID:}
+    redirect-uri: ${ENABLEBANKING_REDIRECT_URI:https://localhost:5173/sync/callback}
+    private-key: ${ENABLEBANKING_PRIVATE_KEY:}
+    private-key-path: ${ENABLEBANKING_PRIVATE_KEY_PATH:/data/keys/enablebanking-private.pem}
+    base-url: ${ENABLEBANKING_BASE_URL:https://api.enablebanking.com}

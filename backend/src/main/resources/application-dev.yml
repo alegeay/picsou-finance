@@ -1,0 +1,29 @@
+app:
+  secure-cookies: false   # HTTP in dev — no Secure flag needed
+  tr-auth:
+    url: ${TR_AUTH_URL:http://127.0.0.1:8001}
+  bourse-direct-auth:
+    url: ${BOURSE_DIRECT_AUTH_URL:http://127.0.0.1:8002}
+  enablebanking:
+    private-key-path: ${ENABLEBANKING_PRIVATE_KEY_PATH:.local/keys/enablebanking-private.pem}
+
+spring:
+  jpa:
+    properties:
+      hibernate:
+        format_sql: true
+  devtools:
+    restart:
+      enabled: true
+
+server:
+  error:
+    include-stacktrace: on_param   # allow ?trace=true in dev only
+
+logging:
+  level:
+    com.picsou: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.web.cors: TRACE
+    org.springframework.web.filter.CorsFilter: TRACE
+    org.hibernate.SQL: WARN
