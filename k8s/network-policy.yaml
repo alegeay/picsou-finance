@@ -47,6 +47,13 @@ spec:
     - to:
         - podSelector:
             matchLabels:
+              app.kubernetes.io/name: picsou-groupama-es-auth
+      ports:
+        - protocol: TCP
+          port: 8001
+    - to:
+        - podSelector:
+            matchLabels:
               cnpg.io/cluster: picsou-db
       ports:
         - protocol: TCP
@@ -74,6 +81,39 @@ spec:
   podSelector:
     matchLabels:
       app.kubernetes.io/name: picsou-bourse-direct-auth
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: picsou
+      ports:
+        - protocol: TCP
+          port: 8001
+  egress:
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - ports:
+        - protocol: TCP
+          port: 443
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-groupama-es-auth
+  namespace: picsou-finance
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: picsou-groupama-es-auth
   policyTypes: [Ingress, Egress]
   ingress:
     - from:

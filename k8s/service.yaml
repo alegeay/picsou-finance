@@ -39,3 +39,17 @@ spec:
     - name: http
       port: 8001
       targetPort: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: picsou-groupama-es-auth
+  namespace: picsou-finance
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: picsou-groupama-es-auth
+  ports:
+    - name: http
+      port: 8001
+      targetPort: http

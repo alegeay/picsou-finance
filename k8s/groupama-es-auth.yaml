@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: picsou-groupama-es-auth
+  namespace: picsou-finance
+  labels:
+    app.kubernetes.io/name: picsou-groupama-es-auth
+    app.kubernetes.io/component: sidecar
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: picsou-groupama-es-auth
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: picsou-groupama-es-auth
+        app.kubernetes.io/component: sidecar
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: groupama-es-auth
+          image: registry.alexislegeay.fr:5000/web/picsou-finance/groupama-es-auth:groupama-es-985d828
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 999
+            runAsGroup: 999
+            capabilities:
+              drop: [ALL]
+          ports:
+            - name: http
+              containerPort: 8001
+          resources:
+            requests:
+              cpu: 50m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            failureThreshold: 30
+            periodSeconds: 5
+            timeoutSeconds: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 3
+          volumeMounts:
+            - name: browser-shm
+              mountPath: /dev/shm
+      volumes:
+        - name: browser-shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 512Mi

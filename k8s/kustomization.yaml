@@ -8,6 +8,7 @@ resources:
   - deployment.yaml
   - tr-auth.yaml
   - bourse-direct-auth.yaml
+  - groupama-es-auth.yaml
   - service.yaml
   - ingress.yaml
   - certificate.yaml
