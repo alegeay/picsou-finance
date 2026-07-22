@@ -24,7 +24,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: picsou
-          image: registry.alexislegeay.fr:5000/web/picsou-finance/app:bd-pr-19bd7af
+          image: registry.alexislegeay.fr:5000/web/picsou-finance/app:bd-labels-37dceb9
           imagePullPolicy: IfNotPresent
           securityContext:
             # The upstream all-in-one image runs supervisord as root and
