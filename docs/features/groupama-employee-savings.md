@@ -64,6 +64,13 @@ through a visible overlay; an unknown consent dialog fails safely as
 The login control invokes Enterprise reCAPTCHA asynchronously. The sidecar
 waits until `grecaptcha.enterprise.execute()` is available before clicking and
 normalizes the browser's automation signals used by the portal's risk score.
+Production runs headed Chromium under Xvfb so the browser does not expose
+`HeadlessChrome` in either its User-Agent or Client Hints. `XDG_CONFIG_HOME`
+points to writable ephemeral storage so Chromium's crashpad can initialize
+under the non-root runtime. `tini` remains PID 1 so `xvfb-run` receives its
+display-ready signal and Chromium subprocesses are reaped. Direct test and
+debug invocations without a `DISPLAY` retain a headless fallback;
+`GROUPAMA_ES_HEADLESS` can override that choice explicitly.
 Remaining on the login page without an explicit visible credential error is
 reported as `UPSTREAM_UNAVAILABLE`, never as `INVALID_CREDENTIALS`.
 

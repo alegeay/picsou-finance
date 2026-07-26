@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import re
 import time
 import uuid
@@ -67,6 +68,15 @@ if (!window.chrome) { window.chrome = { runtime: {} }; }
 
 _pending: dict[str, dict[str, Any]] = {}
 _pending_lock = asyncio.Lock()
+
+
+def _browser_is_headless() -> bool:
+    configured = os.getenv("GROUPAMA_ES_HEADLESS")
+    if configured is not None:
+        return configured.lower() in ("1", "true", "yes")
+    # Production starts under xvfb-run. Direct test/debug invocations do not
+    # have a virtual display and retain Playwright's headless fallback.
+    return not bool(os.getenv("DISPLAY"))
 
 
 async def _pending_sweeper() -> None:
@@ -239,7 +249,10 @@ async def _close_all_pending() -> None:
 
 
 async def _launch_browser(playwright: Playwright) -> Browser:
-    return await playwright.chromium.launch(headless=True, args=LAUNCH_ARGS)
+    return await playwright.chromium.launch(
+        headless=_browser_is_headless(),
+        args=LAUNCH_ARGS,
+    )
 
 
 async def _configure_context(context: BrowserContext) -> None:
@@ -315,9 +328,14 @@ async def _otp_inputs(page: Page) -> list[Any]:
 
 async def _has_login_error(page: Page) -> bool:
     selectors = [
+        "#ident-error-message",
         '[role="alert"]',
         ".ei_error",
         ".ei_appl_error",
+        ".ei_message_err",
+        ".ei_appl_msg",
+        ".ei_appl_message",
+        ".blocmsg.err",
         ".erreur",
         ".error",
     ]

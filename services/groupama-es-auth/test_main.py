@@ -1,4 +1,5 @@
 import asyncio
+import os
 import time
 import unittest
 from decimal import Decimal
@@ -14,6 +15,7 @@ from main import (
     PENDING_TTL_SECONDS,
     ROOT_PATH,
     _auth_outcome,
+    _browser_is_headless,
     _cleanup_expired,
     _close_all_pending,
     _configure_context,
@@ -126,6 +128,22 @@ class PendingAuthenticationLifecycleTest(unittest.IsolatedAsyncioTestCase):
 
 
 class BrowserSelectorsTest(unittest.IsolatedAsyncioTestCase):
+    async def test_virtual_display_uses_headed_chromium(self):
+        with patch.dict(os.environ, {"DISPLAY": ":99"}, clear=True):
+            self.assertFalse(_browser_is_headless())
+
+    async def test_missing_display_keeps_headless_debug_fallback(self):
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertTrue(_browser_is_headless())
+
+    async def test_explicit_headless_override_wins_over_display(self):
+        with patch.dict(
+            os.environ,
+            {"DISPLAY": ":99", "GROUPAMA_ES_HEADLESS": "true"},
+            clear=True,
+        ):
+            self.assertTrue(_browser_is_headless())
+
     async def test_browser_masks_automation_signals(self):
         async with async_playwright() as playwright:
             browser = await _launch_browser(playwright)
@@ -188,6 +206,38 @@ class BrowserSelectorsTest(unittest.IsolatedAsyncioTestCase):
                     body=(
                         '<div role="alert">'
                         "Identifiant ou mot de passe invalide"
+                        "</div>"
+                    ),
+                ),
+            )
+            try:
+                await page.goto(LOGIN_URL)
+
+                outcome = await _auth_outcome(
+                    context,
+                    page,
+                    timeout_seconds=0.5,
+                )
+
+                self.assertEqual(outcome, "INVALID_CREDENTIALS")
+            finally:
+                await context.close()
+                await browser.close()
+
+    async def test_current_portal_login_error_is_invalid_credentials(self):
+        async with async_playwright() as playwright:
+            browser = await playwright.chromium.launch(headless=True)
+            context = await browser.new_context()
+            page = await context.new_page()
+            await page.route(
+                LOGIN_URL,
+                lambda route: route.fulfill(
+                    status=200,
+                    content_type="text/html",
+                    body=(
+                        '<div id="ident-error-message">'
+                        "Votre identifiant est inconnu ou votre mot de passe "
+                        "est faux."
                         "</div>"
                     ),
                 ),
