@@ -4,6 +4,7 @@ import unittest
 from decimal import Decimal
 from unittest.mock import patch
 
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from playwright.async_api import async_playwright
 
@@ -122,6 +123,81 @@ class PendingAuthenticationLifecycleTest(unittest.IsolatedAsyncioTestCase):
 
 
 class BrowserSelectorsTest(unittest.IsolatedAsyncioTestCase):
+    async def test_unknown_visible_cookie_banner_fails_safely(self):
+        async with async_playwright() as playwright:
+            browser = await playwright.chromium.launch(headless=True)
+            page = await browser.new_page()
+            try:
+                await page.set_content("""
+                  <div id="cookieLB">
+                    <button type="button">Unexpected consent action</button>
+                  </div>
+                  <input id="_userid">
+                  <input id="_pwduser" type="password">
+                  <span id="login-submit"><a href="#">Se connecter</a></span>
+                """)
+
+                with self.assertRaises(HTTPException) as raised:
+                    await _submit_login(page, "customer", "secret")
+
+                self.assertEqual(raised.exception.status_code, 502)
+                self.assertEqual(
+                    raised.exception.detail,
+                    "UPSTREAM_FORMAT_CHANGED",
+                )
+                self.assertEqual(await page.locator("#_userid").input_value(), "")
+            finally:
+                await browser.close()
+
+    async def test_cookie_banner_is_rejected_before_login_submission(self):
+        async with async_playwright() as playwright:
+            browser = await playwright.chromium.launch(headless=True)
+            page = await browser.new_page()
+            try:
+                await page.set_content("""
+                  <style>
+                    #cookieLB {
+                      position: fixed;
+                      inset: 0;
+                      z-index: 100;
+                      background: white;
+                    }
+                  </style>
+                  <div id="cookieLB">
+                    <a href="#" role="button"
+                       aria-label="Refuser les cookies">REFUSER</a>
+                  </div>
+                  <form id="bloc_ident">
+                    <input id="_userid" name="_cm_user">
+                    <input id="_pwduser" name="_cm_pwd" type="password">
+                    <span id="login-submit">
+                      <a href="#">Se connecter</a>
+                    </span>
+                  </form>
+                  <script>
+                    window.loginSubmitted = false;
+                    document.querySelector(
+                      '[aria-label="Refuser les cookies"]'
+                    ).addEventListener("click", event => {
+                      event.preventDefault();
+                      document.querySelector("#cookieLB").style.display =
+                        "none";
+                    });
+                    document.querySelector("#login-submit a")
+                      .addEventListener("click", event => {
+                        event.preventDefault();
+                        window.loginSubmitted = true;
+                      });
+                  </script>
+                """)
+
+                await _submit_login(page, "customer", "secret")
+
+                self.assertTrue(await page.locator("#cookieLB").is_hidden())
+                self.assertTrue(await page.evaluate("window.loginSubmitted"))
+            finally:
+                await browser.close()
+
     async def test_current_groupama_login_form_is_supported(self):
         async with async_playwright() as playwright:
             browser = await playwright.chromium.launch(headless=True)

@@ -56,6 +56,11 @@ reCAPTCHA Enterprise and may continue through strong authentication.
    backend encrypts it with `CryptoEncryption` before persisting
    `groupama_es_session`.
 
+Before submitting credentials, the sidecar detects the portal's cookie-consent
+dialog and explicitly chooses "Refuser les cookies". It never forces a click
+through a visible overlay; an unknown consent dialog fails safely as
+`UPSTREAM_FORMAT_CHANGED`.
+
 The login, password, OTP and raw portfolio HTML are never logged or stored.
 Cookies are never logged and are persisted only inside the encrypted Playwright
 storage state. Pending browser resources are closed after success, failure,

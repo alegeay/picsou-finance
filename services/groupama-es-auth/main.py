@@ -356,7 +356,34 @@ async def _auth_outcome(
     return "UPSTREAM_UNAVAILABLE"
 
 
+async def _dismiss_cookie_banner(page: Page) -> None:
+    banner = page.locator("#cookieLB").first
+    if await banner.count() == 0:
+        return
+    try:
+        await banner.wait_for(state="visible", timeout=3_000)
+    except PlaywrightTimeoutError:
+        return
+
+    reject = await _first_visible(page, [
+        '#cookieLB [role="button"][aria-label*="Refuser les cookies" i]',
+        '#cookieLB [role="button"]:has-text("REFUSER")',
+    ])
+    if reject is None:
+        raise HTTPException(status_code=502, detail="UPSTREAM_FORMAT_CHANGED")
+
+    await reject.click()
+    try:
+        await banner.wait_for(state="hidden", timeout=5_000)
+    except PlaywrightTimeoutError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="UPSTREAM_FORMAT_CHANGED",
+        ) from exc
+
+
 async def _submit_login(page: Page, login: str, password: str) -> None:
+    await _dismiss_cookie_banner(page)
     login_input = await _first_visible(page, [
         "#_userid",
         'input[name="_cm_user"]',
