@@ -60,6 +60,10 @@ MAX_DETAIL_REQUESTS = 50
 DETAIL_ENRICHMENT_BUDGET_SECONDS = 60
 RECAPTCHA_READY_TIMEOUT_MS = 15_000
 LAUNCH_ARGS = ["--disable-blink-features=AutomationControlled"]
+BROWSER_VIEWPORT = {"width": 1536, "height": 864}
+BROWSER_SCREEN = {"width": 1920, "height": 1080}
+HUMAN_KEY_DELAY_MS = 35
+HUMAN_INTERACTION_PAUSE_MS = 250
 _ANTIBOT_INIT_JS = """
 Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
 Object.defineProperty(navigator, 'languages', { get: () => ['fr-FR', 'fr'] });
@@ -252,7 +256,23 @@ async def _launch_browser(playwright: Playwright) -> Browser:
     return await playwright.chromium.launch(
         headless=_browser_is_headless(),
         args=LAUNCH_ARGS,
+        ignore_default_args=["--enable-automation"],
     )
+
+
+async def _new_context(
+    browser: Browser,
+    storage_state: dict[str, Any] | None = None,
+) -> BrowserContext:
+    options: dict[str, Any] = {
+        "locale": "fr-FR",
+        "timezone_id": "Europe/Paris",
+        "viewport": BROWSER_VIEWPORT,
+        "screen": BROWSER_SCREEN,
+    }
+    if storage_state is not None:
+        options["storage_state"] = storage_state
+    return await browser.new_context(**options)
 
 
 async def _configure_context(context: BrowserContext) -> None:
@@ -452,10 +472,15 @@ async def _submit_login(page: Page, login: str, password: str) -> None:
     ])
     if login_input is None or password_input is None or submit is None:
         raise HTTPException(status_code=502, detail="UPSTREAM_FORMAT_CHANGED")
-    await login_input.fill(login)
-    await password_input.fill(password)
+    await page.wait_for_timeout(HUMAN_INTERACTION_PAUSE_MS)
+    await login_input.click()
+    await login_input.press_sequentially(login, delay=HUMAN_KEY_DELAY_MS)
+    await page.wait_for_timeout(HUMAN_INTERACTION_PAUSE_MS)
+    await password_input.click()
+    await password_input.press_sequentially(password, delay=HUMAN_KEY_DELAY_MS)
     await _wait_for_recaptcha_ready(page)
-    await submit.click(no_wait_after=True)
+    await page.wait_for_timeout(HUMAN_INTERACTION_PAUSE_MS)
+    await submit.click(no_wait_after=True, delay=80, steps=8)
 
 
 async def _storage_state(context: BrowserContext) -> str:
@@ -616,10 +641,7 @@ async def initiate(req: InitiateRequest) -> dict:
     try:
         playwright = await async_playwright().start()
         browser = await _launch_browser(playwright)
-        context = await browser.new_context(
-            locale="fr-FR",
-            timezone_id="Europe/Paris",
-        )
+        context = await _new_context(browser)
         await _configure_context(context)
         page = await context.new_page()
         await page.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=30_000)
@@ -717,11 +739,7 @@ async def accounts(req: AccountsRequest) -> list[AccountPayload]:
     try:
         playwright = await async_playwright().start()
         browser = await _launch_browser(playwright)
-        context = await browser.new_context(
-            storage_state=storage_state,
-            locale="fr-FR",
-            timezone_id="Europe/Paris",
-        )
+        context = await _new_context(browser, storage_state)
         await _configure_context(context)
         page = await context.new_page()
         await page.goto(

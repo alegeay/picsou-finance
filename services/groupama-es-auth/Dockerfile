@@ -2,23 +2,36 @@ FROM python:3.12-slim-bookworm
 
 WORKDIR /app
 
-RUN groupadd -r groupamaes && useradd -r -g groupamaes groupamaes
+RUN groupadd -r groupamaes \
+    && useradd -r -m -d /home/groupamaes -g groupamaes groupamaes
 
 # Chromium-only runtime. The sidecar never needs Firefox or WebKit.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 \
         libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 \
         libxrandr2 libgbm1 libasound2 libpango-1.0-0 libcairo2 \
-        libx11-6 libx11-xcb1 libxcb1 libxext6 \
-        ca-certificates fonts-liberation tini xvfb xauth \
+        libx11-6 libx11-xcb1 libxcb1 libxext6 libglib2.0-data \
+        gsettings-desktop-schemas shared-mime-info \
+        ca-certificates fonts-liberation fonts-noto-color-emoji \
+        fonts-unifont tini xvfb xauth \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Xvfb runs as the non-root service user and needs to create its Unix socket.
-RUN install -d -m 1777 /tmp/.X11-unix
+# Chromium also needs writable profile, font and NSS caches so its runtime
+# fingerprint matches an ordinary browser instead of a broken container.
+RUN install -d -m 1777 /tmp/.X11-unix \
+    && install -d -o groupamaes -g groupamaes \
+        /home/groupamaes/.cache \
+        /home/groupamaes/.cache/fontconfig \
+        /home/groupamaes/.pki \
+        /home/groupamaes/.pki/nssdb \
+        /tmp/chromium-config
 
 ENV PLAYWRIGHT_BROWSERS_PATH=/app/playwright-browsers \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    HOME=/home/groupamaes \
+    XDG_CACHE_HOME=/home/groupamaes/.cache \
     XDG_CONFIG_HOME=/tmp/chromium-config
 
 COPY requirements.txt .

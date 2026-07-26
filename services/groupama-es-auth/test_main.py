@@ -3,7 +3,7 @@ import os
 import time
 import unittest
 from decimal import Decimal
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
@@ -23,6 +23,7 @@ from main import (
     _fill_otp,
     _has_portal_session_cookie,
     _launch_browser,
+    _new_context,
     _pending,
     _pending_lock,
     _submit_login,
@@ -143,6 +144,36 @@ class BrowserSelectorsTest(unittest.IsolatedAsyncioTestCase):
             clear=True,
         ):
             self.assertTrue(_browser_is_headless())
+
+    async def test_browser_omits_playwright_automation_flag(self):
+        playwright = MagicMock()
+        expected_browser = object()
+        playwright.chromium.launch = AsyncMock(return_value=expected_browser)
+
+        with patch("main._browser_is_headless", return_value=False):
+            browser = await _launch_browser(playwright)
+
+        self.assertIs(browser, expected_browser)
+        playwright.chromium.launch.assert_awaited_once_with(
+            headless=False,
+            args=["--disable-blink-features=AutomationControlled"],
+            ignore_default_args=["--enable-automation"],
+        )
+
+    async def test_browser_context_exposes_consistent_screen_geometry(self):
+        browser = MagicMock()
+        expected_context = object()
+        browser.new_context = AsyncMock(return_value=expected_context)
+
+        context = await _new_context(browser)
+
+        self.assertIs(context, expected_context)
+        browser.new_context.assert_awaited_once_with(
+            locale="fr-FR",
+            timezone_id="Europe/Paris",
+            viewport={"width": 1536, "height": 864},
+            screen={"width": 1920, "height": 1080},
+        )
 
     async def test_browser_masks_automation_signals(self):
         async with async_playwright() as playwright:
@@ -357,6 +388,16 @@ class BrowserSelectorsTest(unittest.IsolatedAsyncioTestCase):
                         execute: () => Promise.resolve("token"),
                       },
                     };
+                    window.loginInputEvents = 0;
+                    window.passwordInputEvents = 0;
+                    document.querySelector("#_userid")
+                      .addEventListener("input", () => {
+                        window.loginInputEvents += 1;
+                      });
+                    document.querySelector("#_pwduser")
+                      .addEventListener("input", () => {
+                        window.passwordInputEvents += 1;
+                      });
                   </script>
                 """)
 
@@ -364,6 +405,14 @@ class BrowserSelectorsTest(unittest.IsolatedAsyncioTestCase):
 
                 self.assertEqual(await page.locator("#_userid").input_value(), "customer")
                 self.assertEqual(await page.locator("#_pwduser").input_value(), "secret")
+                self.assertEqual(
+                    await page.evaluate("window.loginInputEvents"),
+                    len("customer"),
+                )
+                self.assertEqual(
+                    await page.evaluate("window.passwordInputEvents"),
+                    len("secret"),
+                )
             finally:
                 await browser.close()
 
