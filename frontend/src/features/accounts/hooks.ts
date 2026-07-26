@@ -26,7 +26,18 @@ export interface PortfolioLine {
   priceUpdatedAt: string | null
 }
 
-const HOLDING_ACCOUNT_TYPES: Account['type'][] = ['PEA', 'COMPTE_TITRES', 'CRYPTO']
+const HOLDING_ACCOUNT_TYPES: Account['type'][] = [
+  'PEA',
+  'COMPTE_TITRES',
+  'PEE',
+  'PERCOL',
+  'CRYPTO',
+]
+
+// Groupama employee-savings supports use stable provider-side ids, not public
+// market tickers. Their backend values are complete, reconciled EUR snapshots.
+const canUsePublicPrice = (ticker: string | null): ticker is string =>
+  ticker != null && ticker !== 'EUR' && !ticker.startsWith('GES_')
 
 // Single source of truth: recompute the (value, cost, pnl, pct) trio from a live price.
 // Keeps all four derived numbers consistent with the same price snapshot.
@@ -37,8 +48,10 @@ function recomputeWithLivePrice(
   const costBasisEur = input.costBasisEur
   const currentValueEur = input.quantity * livePrice
   const pnlEur = costBasisEur != null ? currentValueEur - costBasisEur : null
+  // Math.abs: a short position has a negative cost basis — dividing by it would flip
+  // the sign and show a winning short as a loss. Mirrors the backend formula.
   const pnlPercent = costBasisEur != null && costBasisEur !== 0
-    ? (pnlEur! / costBasisEur) * 100
+    ? (pnlEur! / Math.abs(costBasisEur)) * 100
     : null
   return { currentValueEur, costBasisEur, pnlEur, pnlPercent }
 }
@@ -80,7 +93,9 @@ export function usePortfolio() {
       lines.push(...holdingResults.flat())
 
       // Fetch live prices for all tickers
-      const allTickers = [...new Set(lines.map(l => l.ticker).filter((t): t is string => t != null && t !== 'EUR'))]
+      const allTickers = [
+        ...new Set(lines.map(l => l.ticker).filter(canUsePublicPrice)),
+      ]
       let livePrices: Record<string, number> = {}
       if (allTickers.length > 0) {
         try {
@@ -167,7 +182,10 @@ export function useHoldingsWithLivePrices(id: number) {
       const holdings = await accountsApi.holdings(id)
       if (holdings.length === 0) return holdings
 
-      const tickers = [...new Set(holdings.map(h => h.ticker))]
+      const tickers = [
+        ...new Set(holdings.map(h => h.ticker).filter(canUsePublicPrice)),
+      ]
+      if (tickers.length === 0) return holdings
       try {
         const livePrices = await accountsApi.prices(tickers)
         const now = new Date().toISOString()
@@ -408,7 +426,7 @@ export function useSecurityInsight(ticker: string | null, name: string | null, e
   return useQuery({
     queryKey: ['security-insight', ticker],
     queryFn: () => accountsApi.securityInsight(ticker!, name),
-    enabled: enabled && !!ticker,
+    enabled: enabled && canUsePublicPrice(ticker),
     staleTime: 24 * 60 * 60 * 1000,
   })
 }
@@ -424,7 +442,7 @@ export function usePriceHistory(ticker: string | null, months: number, range: st
       }
       return accountsApi.priceHistory(ticker!, months)
     },
-    enabled: !!ticker,
+    enabled: canUsePublicPrice(ticker),
     staleTime: 2 * 60 * 1000,
   })
 }

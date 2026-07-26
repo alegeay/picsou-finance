@@ -24,7 +24,7 @@ const FILTER_KEYS: AssetFilter[] = ['ALL', 'STOCKS', 'METALS', 'SAVINGS', 'CHECK
 
 const ASSET_FILTER_MAP: Record<AssetFilter, AccountType[] | null> = {
   ALL: null,
-  STOCKS: ['PEA', 'COMPTE_TITRES'],
+  STOCKS: ['PEA', 'COMPTE_TITRES', 'PEE', 'PERCOL'],
   METALS: ['OTHER'],
   SAVINGS: ['LEP', 'SAVINGS'],
   CHECKING: ['CHECKING'],
@@ -46,6 +46,8 @@ const TYPE_GROUP_META: Record<string, { key: string; labelKey: string; color: st
 const TYPE_TO_GROUP: Record<AccountType, string> = {
   PEA: 'STOCKS',
   COMPTE_TITRES: 'STOCKS',
+  PEE: 'STOCKS',
+  PERCOL: 'STOCKS',
   OTHER: 'METALS',
   LEP: 'SAVINGS',
   SAVINGS: 'SAVINGS',
@@ -55,7 +57,7 @@ const TYPE_TO_GROUP: Record<AccountType, string> = {
   LOAN: 'DEBTS',
 }
 
-const HOLDING_ACCOUNT_TYPES: AccountType[] = ['PEA', 'COMPTE_TITRES', 'CRYPTO']
+const HOLDING_ACCOUNT_TYPES: AccountType[] = ['PEA', 'COMPTE_TITRES', 'PEE', 'PERCOL', 'CRYPTO']
 
 type AccountFormData = {
   name: string

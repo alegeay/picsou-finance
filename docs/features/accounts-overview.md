@@ -1,6 +1,6 @@
 # Feature: Accounts Overview (PnL chart + summary card + asset type filters)
 
-> Last updated: 2026-04-13
+> Last updated: 2026-07-26 (PEE/PERCOL investment accounts)
 
 ## Context
 
@@ -10,7 +10,7 @@ The Accounts page (`/accounts`) shows a grid of account cards. Users need a visu
 
 ### Summary card
 
-A `Card` at the top of the page shows the total balance for the filtered accounts. If the current filter contains investment accounts (PEA, COMPTE_TITRES, CRYPTO), it also displays the aggregate PnL (total balance - total invested) with a green/red trend icon and percentage, using the same style as the Dashboard net worth card.
+A `Card` at the top of the page shows the total balance for the filtered accounts. If the current filter contains investment accounts (PEA, COMPTE_TITRES, PEE, PERCOL, CRYPTO), it also displays the aggregate PnL (total balance - total invested) with a green/red trend icon and percentage, using the same style as the Dashboard net worth card.
 
 PnL values come from the `invested` dataset in `useAllAccountsHistory` — the last point's invested amounts are summed for all filtered accounts.
 
@@ -27,16 +27,17 @@ The chart is only rendered when `hasHoldings` is true (current filter contains i
 
 ### Asset type filters
 
-Six asset categories defined in `AccountsPage.tsx`:
+Seven asset categories plus the `ALL` view are defined in `AccountsPage.tsx`:
 
 | Filter key | Account types | Chart color |
 |-----------|--------------|-------------|
-| STOCKS | PEA, COMPTE_TITRES | `#6366f1` |
+| STOCKS | PEA, COMPTE_TITRES, PEE, PERCOL | `#6366f1` |
 | METALS | OTHER | `#eab308` |
 | SAVINGS | LEP, SAVINGS | `#22c55e` |
 | CHECKING | CHECKING | `#0ea5e9` |
 | CRYPTO | CRYPTO | `#f97316` |
-| REAL_ESTATE | *(none yet)* | `#a855f7` |
+| REAL_ESTATE | REAL_ESTATE | `#a855f7` |
+| DEBTS | LOAN | `#ef4444` |
 
 The filter affects the summary card, chart, and account card grid simultaneously.
 
@@ -88,7 +89,10 @@ AccountsPage
 ## Gotchas / Pitfalls
 
 - **`TYPE_TO_GROUP` must cover every `AccountType`** — if a new type is added to the enum but not to this map, those accounts silently disappear from the ALL chart.
-- **`REAL_ESTATE` maps to no `AccountType`** — placeholder category. The filter pill shows but the grid/chart will be empty.
+- **PEE/PERCOL are holding accounts** — keep them in
+  `HOLDING_ACCOUNT_TYPES`, `ASSET_FILTER_MAP` and `TYPE_TO_GROUP`; otherwise
+  their FCPE positions disappear from portfolio/P&L views or the whole plan is
+  misclassified as cash.
 - **`Account.id` cast to `number`** — virtual group accounts use string keys (`'STOCKS'`, `'CRYPTO'`) cast as `number` via `as unknown as number`. This works because Recharts uses `dataKey` as a string lookup, but it's fragile.
 - **`totalInvested` relies on the last invested point** — if an account has no snapshots at all, its invested amount is 0 and PnL equals its full balance. This is correct for newly created accounts where balance = invested.
 - **Cash accounts have `investedAmount = balance`** — set by `AccountService.calculateInvestedAmount()` which returns `currentBalance` for accounts without holdings. This means their PnL = 0.
@@ -97,7 +101,9 @@ AccountsPage
 
 ## Tests
 
-No dedicated test files for this feature yet.
+- `frontend/src/features/accounts/hooks.test.tsx` verifies that a PEE expands
+  into holdings and that Groupama `GES_` supports are not sent to public price
+  providers.
 
 ## Links
 

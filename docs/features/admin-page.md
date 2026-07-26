@@ -1,6 +1,6 @@
 # Feature: Admin Page (instance settings)
 
-> Last updated: 2026-05-29 (create-user-from-Admin + login derived from display name)
+> Last updated: 2026-07-26 (Groupama employee-savings integration status)
 
 ## Context
 
@@ -71,8 +71,9 @@ Frontend:
   flag, Zod schema requires at least one origin.
 - `frontend/src/pages/admin/sections/EnableBankingSection.tsx` — RHF over a
   `FIELDS` array, Zod with `.url()` on `redirectUri`.
-- `frontend/src/pages/admin/sections/IntegrationsSection.tsx` — five hardcoded keys
-  (`enablebanking, boursobank, traderepublic, finary, crypto`) toggled via
+- `frontend/src/pages/admin/sections/IntegrationsSection.tsx` — six visible
+  hardcoded keys (`enablebanking, boursedirect, groupamaes, traderepublic,
+  finary, crypto`) toggled via
   `useToggleIntegration`.
 - `frontend/src/pages/admin/sections/MembersSection.tsx` — create-user form (name
   + "Create user" button) on top, then the list of family members with avatar,
@@ -98,7 +99,7 @@ Frontend:
   with the `Shield` icon, before Logout.
 - `frontend/src/pages/settings/SettingsPage.tsx` — admin-only "Admin" section
   card after Family.
-- `frontend/src/i18n/locales/{fr,en}.json` — `admin.*` namespace + `nav.admin`,
+- `frontend/src/i18n/locales/{fr,en,de,es}.json` — `admin.*` namespace + `nav.admin`,
   `nav.admin.desc`, `settings.adminSection*`.
 
 ### Flow
@@ -149,7 +150,8 @@ On submit / toggle ──► PUT or PATCH ──► invalidate adminKeys.setting
   `getSettings` reports `integrationsService.isEffectivelyEnabled(key)`, which ORs
   the stored `app_setting` flag with a cheap per-integration config probe: Enable
   Banking → `EnableBankingConfigProvider.isConfiguredLenient()` (creds + key
-  present, no parsing); Trade Republic / Finary → a login-session row exists;
+  present, no parsing); Bourse Direct / Groupama employee savings / Trade
+  Republic / Finary → an active login-session row exists;
   BoursoBank (network-only) / crypto (nothing to detect) → fall back to the flag.
   This is why an install configured purely via `.env` / docker-compose — which
   never ran the wizard, so the flag stayed `false` — still shows its integrations
@@ -158,8 +160,9 @@ On submit / toggle ──► PUT or PATCH ──► invalidate adminKeys.setting
   to `false` snaps back to `on` on the next `GET`). The switch reflects reality
   rather than a stale boolean — to disable, remove the env config / delete the
   session.
-- **Toggling an integration off does not delete its credentials** (TR session,
-  Bourso session, EB requisitions, encrypted exchange API keys). It only flips the
+- **Toggling an integration off does not delete its credentials** (TR,
+  Bourse Direct or Groupama session, Bourso session, EB requisitions, encrypted
+  exchange API keys). It only flips the
   `app_setting` flag. Re-enabling restores prior connectivity. By design — flipping
   a sync provider off temporarily must not nuke the user's stored secrets.
 - **Changes to `cors.allowed-origins` and `app.secure-cookies` take effect without

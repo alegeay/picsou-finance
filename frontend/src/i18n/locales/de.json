@@ -190,6 +190,8 @@
     "lep": "LEP",
     "pea": "PEA",
     "compteTitres": "Wertpapierdepot",
+    "pee": "Betrieblicher Sparplan (PEE)",
+    "percol": "Betriebliche Altersvorsorge (PERCOL)",
     "crypto": "Krypto",
     "realEstate": "Immobilie",
     "loan": "Kredit",
@@ -397,6 +399,7 @@
       "wallets": "Bitcoin, Ethereum, BNB, Solana...",
       "tr": "Trade Republic",
       "bourseDirect": "PEA- und Wertpapierkonten synchronisieren",
+      "groupamaEs": "Groupama PEE und PERCOL synchronisieren",
       "finary": "Aus Finary importieren",
       "manual": "Konto manuell erstellen"
     }
@@ -444,6 +447,29 @@
         "pinRequired": "PIN ist erforderlich.",
         "validationFailed": "Ungültige Daten.",
         "unknownError": "Ein unerwarteter Fehler ist aufgetreten."
+      }
+    },
+    "ibkr": {
+      "title": "Interactive Brokers",
+      "setupHint": "Erstellen Sie im IBKR Client Portal eine „Open Positions“-Flex-Abfrage und generieren Sie ein Flex-Web-Service-Token, und fügen Sie beide unten ein.",
+      "token": "Flex-Web-Service-Token",
+      "tokenPlaceholder": "z. B. 123456789012345678901234",
+      "queryId": "Flex-Abfrage-ID",
+      "queryIdPlaceholder": "z. B. 987654",
+      "connect": "Verbinden",
+      "sync": "Synchronisieren",
+      "syncing": "Wird synchronisiert…",
+      "disconnect": "Trennen",
+      "disconnectConfirm": "Gespeicherte Interactive-Brokers-Verbindung entfernen?",
+      "connected": "Verbunden",
+      "statusError": "Letzte Synchronisierung fehlgeschlagen",
+      "lastSync": "Letzte Sync",
+      "neverSynced": "Nie synchronisiert",
+      "syncedToast": "Interactive Brokers synchronisiert: {{count}} Konto/Konten",
+      "errors": {
+        "connectFailed": "Verbindung konnte nicht gespeichert werden. Prüfen Sie Token und Abfrage-ID.",
+        "syncFailed": "Interactive-Brokers-Synchronisierung fehlgeschlagen. Prüfen Sie Ihr Token oder versuchen Sie es erneut.",
+        "disconnectFailed": "Verbindung konnte nicht entfernt werden. Bitte versuchen Sie es erneut."
       }
     },
     "exchanges": {
@@ -578,6 +604,37 @@
         "formatChanged": "Bourse Direct hat sein Portfolioformat geändert. Deine vorhandenen Daten wurden nicht verändert.",
         "invalidData": "Bourse Direct hat widersprüchliche Portfoliodaten geliefert. Deine vorhandenen Daten wurden nicht verändert.",
         "serverError": "Bourse Direct konnte nicht erreicht werden. Bitte erneut versuchen."
+      }
+    },
+    "groupamaEs": {
+      "title": "Groupama Mitarbeitersparen",
+      "login": "Benutzername",
+      "password": "Passwort",
+      "otpCode": "Sicherheitscode",
+      "otpPrompt": "Gib den von Groupama Mitarbeitersparen gesendeten Code ein.",
+      "connect": "Anmelden",
+      "connecting": "Anmeldung läuft…",
+      "validate": "Code bestätigen",
+      "validating": "Bestätigung läuft…",
+      "sync": "Synchronisieren",
+      "queued": "Synchronisierung in Warteschlange…",
+      "syncing": "Synchronisierung läuft…",
+      "syncSuccess": "Mitarbeitersparen synchronisiert.",
+      "clearSession": "Trennen",
+      "noSession": "Keine aktive Sitzung",
+      "sessionActive": "Aktive Sitzung",
+      "scope": "Synchronisiert Salden, Fonds und von Groupama gemeldete Gewinne oder Verluste für PEE und PERCOL.",
+      "errors": {
+        "tooManyAttempts": "Zu viele Versuche. Bitte warten.",
+        "invalidCredentials": "Ungültige Groupama-Zugangsdaten.",
+        "invalidCode": "Ungültiger oder abgelaufener Sicherheitscode. Verbindung erneut starten.",
+        "authAttemptExpired": "Der Anmeldeversuch ist abgelaufen. Verbindung erneut starten.",
+        "sessionExpired": "Die Groupama-Sitzung ist abgelaufen. Bitte erneut verbinden.",
+        "actionRequired": "Groupama verlangt eine Aktion im Kundenportal. Schließe sie dort ab und verbinde Picsou danach erneut.",
+        "portfolioIncomplete": "Groupama hat ein unvollständiges Portfolio geliefert. Deine vorhandenen Daten wurden beibehalten.",
+        "formatChanged": "Das Format des Groupama-Portals hat sich geändert. Deine vorhandenen Daten wurden beibehalten.",
+        "invalidData": "Groupama hat widersprüchliche Daten geliefert. Deine vorhandenen Daten wurden beibehalten.",
+        "serverError": "Groupama Mitarbeitersparen konnte nicht erreicht werden. Bitte erneut versuchen."
       }
     }
   },
@@ -811,6 +868,7 @@
       "enablebanking": "Enable Banking",
       "boursobank": "BoursoBank",
       "boursedirect": "Bourse Direct",
+      "groupamaes": "Groupama Mitarbeitersparen",
       "traderepublic": "Trade Republic",
       "finary": "Finary",
       "crypto": "Krypto"
@@ -983,6 +1041,10 @@
           "title": "Bourse Direct",
           "description": "PEA- und Wertpapierpositionen direkt mit Zwei-Faktor-Authentifizierung synchronisieren."
         },
+        "groupamaes": {
+          "title": "Groupama Mitarbeitersparen",
+          "description": "PEE- und PERCOL-Pläne direkt über das Groupama-Kundenportal synchronisieren."
+        },
         "traderepublic": {
           "title": "Trade Republic",
           "description": "Synchronisiere dein Trade-Republic-Portfolio mit deinen Login-Daten. Die Zugangsdaten gibst du beim Erstellen des Kontos ein."
@@ -1095,6 +1157,13 @@
       "tip": "Picsou speichert nur eine verschlüsselte Sitzung. Passwort und 2FA-Code werden nie gespeichert. Importierte Konten bleiben ihrem PEA- oder Wertpapierkonto zugeordnet.",
       "cta": "Bourse Direct aktivieren",
       "skip": "Bourse Direct nicht aktivieren"
+    },
+    "groupamaEs": {
+      "title": "Groupama Mitarbeitersparen ist bereit.",
+      "body": "Melde dich nach der Einrichtung mit deinen Groupama-Zugangsdaten an, um PEE und PERCOL zu importieren.",
+      "tip": "Picsou speichert nur eine verschlüsselte Browser-Sitzung. Passwort und Sicherheitscode werden nie gespeichert.",
+      "cta": "Groupama Mitarbeitersparen aktivieren",
+      "skip": "Groupama Mitarbeitersparen nicht aktivieren"
     },
     "tr": {
       "title": "Trade Republic ist startklar.",

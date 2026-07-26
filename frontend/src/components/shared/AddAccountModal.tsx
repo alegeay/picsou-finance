@@ -15,6 +15,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { AccountForm } from '@/components/shared/AccountForm'
 import { CurrencyDisplay } from '@/components/shared/CurrencyDisplay'
 import { BourseDirectPanel } from '@/components/sync/BourseDirectPanel'
+import { GroupamaEsPanel } from '@/components/sync/GroupamaEsPanel'
 import { ACCOUNT_COLORS, TR_VERIFICATION_CODE_LENGTH } from '@/lib/constants'
 import { extractErrorMessage, formatTrAuthError, getErrorStatus, getErrorDetail } from '@/lib/errors'
 import { useCreateAccount, useUpdateDebtMetadata } from '@/features/accounts/hooks'
@@ -52,6 +53,7 @@ import {
   ShieldCheck,
   RefreshCw,
   BriefcaseBusiness,
+  PiggyBank,
 } from 'lucide-react'
 import type { ExchangeType, ChainType, AccountRequest, FinaryPreviewResponse, FinaryAccountMapping, FinaryMappingAction, FinaryImportResultResponse, AccountType } from '@/types/api'
 import { SUPPORTED_CHAINS } from '@/types/api'
@@ -65,7 +67,7 @@ interface AddAccountModalProps {
   onOpenChange: (open: boolean) => void
 }
 
-type WizardStep = 'selector' | 'banks' | 'exchanges' | 'wallets' | 'tr' | 'bourseDirect' | 'finary' | 'manual'
+type WizardStep = 'selector' | 'banks' | 'exchanges' | 'wallets' | 'tr' | 'bourseDirect' | 'groupamaEs' | 'finary' | 'manual'
 
 /**
  * Masked variant of InputOTPSlot — replaces the typed character with a bullet
@@ -103,6 +105,7 @@ const SOURCES: { key: WizardStep; icon: typeof Landmark; labelKey: string; descK
   { key: 'wallets', icon: Wallet, labelKey: 'sync.wallets.title', descKey: 'addAccount.desc.wallets' },
   { key: 'tr', icon: Smartphone, labelKey: 'sync.tr.title', descKey: 'addAccount.desc.tr' },
   { key: 'bourseDirect', icon: BriefcaseBusiness, labelKey: 'sync.bourseDirect.title', descKey: 'addAccount.desc.bourseDirect' },
+  { key: 'groupamaEs', icon: PiggyBank, labelKey: 'sync.groupamaEs.title', descKey: 'addAccount.desc.groupamaEs' },
   { key: 'finary', icon: FileSpreadsheet, labelKey: 'sync.finary.title', descKey: 'addAccount.desc.finary' },
   { key: 'manual', icon: PenLine, labelKey: 'addAccount.manual', descKey: 'addAccount.desc.manual' },
 ]
@@ -141,7 +144,7 @@ export function AddAccountModal({ open, onOpenChange }: AddAccountModalProps) {
 
   async function handleManualSubmit(data: {
     name: string
-    type: 'LEP' | 'PEA' | 'COMPTE_TITRES' | 'CRYPTO' | 'CHECKING' | 'SAVINGS' | 'REAL_ESTATE' | 'LOAN' | 'OTHER'
+    type: 'LEP' | 'PEA' | 'COMPTE_TITRES' | 'PEE' | 'PERCOL' | 'CRYPTO' | 'CHECKING' | 'SAVINGS' | 'REAL_ESTATE' | 'LOAN' | 'OTHER'
     provider?: string
     currency: string
     currentBalance?: number
@@ -227,6 +230,12 @@ export function AddAccountModal({ open, onOpenChange }: AddAccountModalProps) {
                 <>
                   <BackButton onClick={() => setStep('selector')} />
                   <BourseDirectPanel onConnected={handleDone} />
+                </>
+              )}
+              {step === 'groupamaEs' && (
+                <>
+                  <BackButton onClick={() => setStep('selector')} />
+                  <GroupamaEsPanel onConnected={handleDone} />
                 </>
               )}
               {step === 'finary' && <FinaryWizard onDone={handleDone} onBack={() => setStep('selector')} />}
@@ -1185,7 +1194,7 @@ function FinaryWizard({ onDone, onBack }: { onDone: () => void; onBack: () => vo
                         value={mappings[index].newAccount!.type}
                         onChange={(e) => updateNewAccountField(index, 'type', e.target.value)}
                       >
-                        {(['CHECKING', 'SAVINGS', 'LEP', 'PEA', 'COMPTE_TITRES', 'CRYPTO', 'REAL_ESTATE', 'LOAN', 'OTHER'] as const).map((type) => (
+                        {(['CHECKING', 'SAVINGS', 'LEP', 'PEA', 'COMPTE_TITRES', 'PEE', 'PERCOL', 'CRYPTO', 'REAL_ESTATE', 'LOAN', 'OTHER'] as const).map((type) => (
                           <option key={type} value={type}>{t(`accountTypes.${type === 'COMPTE_TITRES' ? 'compteTitres' : type === 'REAL_ESTATE' ? 'realEstate' : type.toLowerCase()}`)}</option>
                         ))}
                       </select>

@@ -21,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -148,6 +149,42 @@ class AccountServiceTest {
     }
 
     @Test
+    void getHoldings_groupamaUsesReconciledProviderValueWithoutPublicQuoteLookup() {
+        Account account = Account.builder()
+            .id(1L)
+            .name("PEE Groupama")
+            .type(AccountType.PEE)
+            .provider(GroupamaEsSyncService.PROVIDER)
+            .currency("EUR")
+            .build();
+        when(accountRepository.findByIdAndMemberId(1L, 1L)).thenReturn(Optional.of(account));
+        AccountHolding holding = AccountHolding.builder()
+            .id(10L)
+            // Deliberately omit the lazy account relation: open-in-view is off,
+            // so provider routing must use the member-scoped account loaded above.
+            .ticker("GES_ABC123")
+            .name("Groupama Sélection ISR")
+            .quantity(new BigDecimal("8"))
+            .averageBuyIn(new BigDecimal("100"))
+            .currentPrice(new BigDecimal("125"))
+            .quoteCurrency("EUR")
+            .providerValueEur(new BigDecimal("1000"))
+            .providerPnlEur(new BigDecimal("200"))
+            .lastSyncedAt(Instant.parse("2026-07-26T10:00:00Z"))
+            .build();
+        when(holdingRepository.findByAccountIdOrderByCurrentPriceDesc(1L))
+            .thenReturn(List.of(holding));
+
+        HoldingResponse result = accountService.getHoldings(1L, 1L).getFirst();
+
+        assertThat(result.currentValueEur()).isEqualByComparingTo("1000");
+        assertThat(result.currentPrice()).isEqualByComparingTo("125");
+        assertThat(result.pnlEur()).isEqualByComparingTo("200");
+        assertThat(result.pnlPercent()).isEqualByComparingTo("25");
+        verify(priceService, never()).getPriceEur(any());
+    }
+
+    @Test
     void updateDebtMetadata_rejectsLinkedAccount_notOwnedByMember() {
         // Caller (member 1) owns the loan account (id 1)...
         when(accountRepository.findByIdAndMemberId(1L, 1L)).thenReturn(Optional.of(ownedAccount()));
@@ -264,6 +301,17 @@ class AccountServiceTest {
         when(priceService.getPriceEur("UNKNOWN")).thenReturn(null);
 
         assertThat(accountService.liveBalanceEur(account)).isEqualByComparingTo("1250");
+    }
+
+    @Test
+    void liveBalanceEur_groupamaUsesReconciledPlanTotalWithoutPublicQuoteLookup() {
+        Account account = Account.builder().id(4L).name("PERCOL Groupama")
+            .type(AccountType.PERCOL).provider(GroupamaEsSyncService.PROVIDER).currency("EUR")
+            .currentBalance(new BigDecimal("4321.09")).build();
+
+        assertThat(accountService.liveBalanceEur(account)).isEqualByComparingTo("4321.09");
+        verify(holdingRepository, never()).findByAccount_Id(4L);
+        verify(priceService, never()).getPriceEur(any());
     }
 
     @Test

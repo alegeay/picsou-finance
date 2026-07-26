@@ -19,6 +19,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   holdings on failure, and retain native quote currencies alongside broker EUR
   valuations. See [feature notes](docs/features/bourse-direct.md) and the
   [ADR](docs/decisions/2026-07-21-bourse-direct-isolated-atomic-sync.md).
+- **Interactive Brokers (IBKR) sync via the Flex Web Service.** Connect once with a
+  read-only Flex token + an "Open Positions" query id; Picsou pulls open positions
+  end-of-day and maps them to accounts + holdings (one account per IBKR account id),
+  valued live in EUR through the existing ticker/price path. Cost basis is converted
+  to the account base currency via `fxRateToBase`; per-tax-lot rows are de-duplicated.
+  Daily auto-sync runs alongside the other connectors. A connection tab on the Sync
+  page (paste token + query id, then sync/disconnect) drives it, in all four locales. See
+  [ADR](docs/decisions/2026-07-19-ibkr-flex-web-service.md) and
+  [feature note](docs/features/ibkr-sync.md).
 - **BNB Chain support and EVM multichain wallets.** On-chain wallets gained an
   `EVM` chain that tracks a single `0x` address across every enabled EVM network
   — Ethereum, BNB Chain, Polygon, Arbitrum, Optimism, Base and Avalanche —
@@ -80,6 +89,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Restoring several tabs at once no longer logs you out everywhere.** When
+  multiple tabs were restored together they each presented the same "Remember
+  Me" token; the first request rotated it and the rest looked like a replayed
+  (stolen) token, so theft detection revoked the whole series and every tab was
+  logged out. `validateAndRotate` now serializes the rotate path with a
+  row-level lock (`findBySeriesIdForUpdate`) and remembers the immediately-previous
+  token hash, accepting it for a short grace window
+  (`app.persistent-session.rotation-grace-seconds`, default 30s). The window is
+  **anchored** to the rotation that opened it — a previous-token acceptance does
+  not advance it — so every tab in the burst is tolerated (not just the first
+  two) and replaying the previous token cannot slide the window forward. A token
+  presented after the window still trips theft detection (migration `V56`).
 - **Bourse Direct positions no longer appear at €0 when an ISIN has no live
   quote.** Dashboard totals now reuse the same atomic account valuation as
   account cards and history. A guarded migration also restores per-position EUR
@@ -145,6 +166,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `WalletRpcException` now also has a dedicated `GlobalExceptionHandler` mapping
   (generic `422`) as defense-in-depth, so a bad RPC response can never surface as a
   raw `500` even on an unwrapped call path.
+
+### Security
+
+- **Sync logs no longer dump full third-party payloads.** Provider responses
+  were written whole at INFO/WARN/ERROR in production: `EnableBankingBankConnector`
+  logged the full balances object (account amounts) — now an INFO **count-only**
+  line (visibility kept, amounts dropped); `FinaryApiClient` logged the raw Clerk
+  sign-in response (which can carry session tokens) — now a body-free message.
+  Every Finary/Clerk error body that flows into an `IOException` → `SyncException`
+  (and thus into logs *and* the user-facing 422) is now bounded before it is
+  thrown — Clerk auth and the low-level retry path to 200 chars, the Finary
+  data-API body to 500 (enough to keep its actionable message, still capped).
+  Defense-in-depth against financial PII and third-party secrets landing in logs.
 
 ## [1.0.13] — 2026-07-07
 

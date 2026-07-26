@@ -1,5 +1,6 @@
 export type AccountType =
-  | 'LEP' | 'PEA' | 'COMPTE_TITRES' | 'CRYPTO' | 'CHECKING' | 'SAVINGS'
+  | 'LEP' | 'PEA' | 'COMPTE_TITRES' | 'PEE' | 'PERCOL'
+  | 'CRYPTO' | 'CHECKING' | 'SAVINGS'
   | 'REAL_ESTATE' | 'LOAN' | 'OTHER'
 
 export interface RealEstateMetadata {
@@ -163,7 +164,7 @@ export interface DashboardData {
     color: string
     balanceEur: number
     percentage: number
-    accountType: string
+    accountType: AccountType
     hasHoldings: boolean
   }[]
   liabilities: {
@@ -172,7 +173,7 @@ export interface DashboardData {
     color: string
     balanceEur: number
     percentage: number
-    accountType: string
+    accountType: AccountType
     hasHoldings: boolean
   }[]
   goalSummaries: GoalProgress[]
@@ -256,6 +257,14 @@ export interface TrSessionStatus {
   expiresAt: string | null
 }
 
+export interface IbkrConnectionStatus {
+  connected: boolean
+  connectionId: number | null
+  status: string | null
+  lastSyncedAt: string | null
+  maskedToken: string | null
+}
+
 export interface BoursoSessionStatus {
   isActive: boolean
   expiresAt: string | null
@@ -268,14 +277,22 @@ export interface BoursoAuthInitResponse {
   contact: string | null
 }
 
-export interface BourseDirectSessionStatus {
+interface BourseDirectSessionStatusBase {
   isActive: boolean
   expiresAt: string | null
-  syncStatus: 'IDLE' | 'QUEUED' | 'RUNNING' | 'SUCCESS' | 'FAILED'
   lastSyncStartedAt: string | null
   lastSyncCompletedAt: string | null
-  lastSyncError: BourseDirectErrorCode | null
 }
+
+export type BourseDirectSessionStatus =
+  | (BourseDirectSessionStatusBase & {
+      syncStatus: 'FAILED'
+      lastSyncError: BourseDirectErrorCode
+    })
+  | (BourseDirectSessionStatusBase & {
+      syncStatus: 'IDLE' | 'QUEUED' | 'RUNNING' | 'SUCCESS'
+      lastSyncError: null
+    })
 
 export type BourseDirectErrorCode =
   | 'INVALID_CREDENTIALS'
@@ -289,6 +306,41 @@ export type BourseDirectErrorCode =
   | 'INTERNAL_ERROR'
 
 export interface BourseDirectAuthInitResponse {
+  processId: string | null
+  mfaRequired: boolean
+  mfaType: string | null
+}
+
+interface GroupamaEsSessionStatusBase {
+  isActive: boolean
+  expiresAt: string | null
+  lastSyncStartedAt: string | null
+  lastSyncCompletedAt: string | null
+}
+
+export type GroupamaEsSessionStatus =
+  | (GroupamaEsSessionStatusBase & {
+      syncStatus: 'FAILED'
+      lastSyncError: GroupamaEsErrorCode
+    })
+  | (GroupamaEsSessionStatusBase & {
+      syncStatus: 'IDLE' | 'QUEUED' | 'RUNNING' | 'SUCCESS'
+      lastSyncError: null
+    })
+
+export type GroupamaEsErrorCode =
+  | 'INVALID_CREDENTIALS'
+  | 'INVALID_OTP'
+  | 'AUTH_ATTEMPT_EXPIRED'
+  | 'SESSION_EXPIRED'
+  | 'ACTION_REQUIRED'
+  | 'PORTFOLIO_INCOMPLETE'
+  | 'UPSTREAM_FORMAT_CHANGED'
+  | 'UPSTREAM_UNAVAILABLE'
+  | 'INVALID_DATA'
+  | 'INTERNAL_ERROR'
+
+export interface GroupamaEsAuthInitResponse {
   processId: string | null
   mfaRequired: boolean
   mfaType: string | null

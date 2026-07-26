@@ -1,15 +1,17 @@
 # Feature: Docker deployment
 
-> Last updated: 2026-07-21 (Bourse Direct internal sidecar)
+> Last updated: 2026-07-26 (Groupama employee-savings internal sidecar)
 
 ## Context
 
-Picsou deploys as three Docker images orchestrated by `docker/docker-compose.yml`:
+Picsou deploys as four Docker images orchestrated by `docker/docker-compose.yml`:
 - **`picsou:latest`** — main app: frontend (Nginx) + backend (Spring Boot), no Python. Published to GHCR as `ghcr.io/zoeille/picsou-finance`.
 - **`docker-tr-auth`** — Trade Republic auth sidecar: headless Chromium + Python/uvicorn. Published to GHCR as `ghcr.io/zoeille/picsou-finance/tr-auth`.
 - **`bourse-direct-auth`** — isolated Bourse Direct login/2FA sidecar, published to GHCR as `ghcr.io/zoeille/picsou-finance/bourse-direct-auth` and reachable only on the Compose network.
+- **`groupama-es-auth`** — isolated Groupama employee-savings login/strong-authentication and PEE/PERCOL portfolio sidecar, published to GHCR as `ghcr.io/zoeille/picsou-finance/groupama-es-auth` and reachable only on the Compose network.
 
-A fourth container is PostgreSQL 16 (official image, not built).
+A fifth container is PostgreSQL 16 (official image, not built). The optional TLS
+profile adds Caddy.
 
 ## How it works
 
@@ -36,6 +38,17 @@ Based on `python:3.12-slim-bookworm`, with Chromium only. It runs as a
 dedicated non-root user and is reached by the backend at
 `BOURSE_DIRECT_AUTH_URL=http://bourse-direct-auth:8001`. Compose does not
 publish its port, so login, 2FA and portfolio endpoints remain internal.
+
+### Groupama employee-savings sidecar — `services/groupama-es-auth/Dockerfile`
+
+Based on `python:3.12-slim-bookworm`, with Chromium only. It runs as a
+dedicated non-root user and is reached by the backend at
+`GROUPAMA_ES_AUTH_URL=http://groupama-es-auth:8001`. Compose does not publish
+its port. The browser is used for reCAPTCHA/strong authentication and for
+collecting strict PEE/PERCOL snapshots from the customer portal.
+The API proxy read/send timeout is 120 seconds so the interactive Groupama
+login can finish reCAPTCHA and portal redirects; portfolio collection itself
+runs asynchronously after the API has returned.
 
 ### Entrypoint (`docker/entrypoint.sh`)
 
@@ -146,10 +159,11 @@ fixed at create time, so the new value is never seen.
 ### Key files
 
 - `docker/Dockerfile` — main image, 3-stage build
-- `docker/docker-compose.yml` — orchestration (app + proxy + both broker sidecars + PostgreSQL + volumes)
+- `docker/docker-compose.yml` — orchestration (app + proxy + three browser sidecars + PostgreSQL + volumes)
 - `docker/Caddyfile` — optional TLS terminator (profile `tls`)
 - `services/tr-auth/Dockerfile` — tr-auth sidecar image
 - `services/bourse-direct-auth/Dockerfile` — Bourse Direct sidecar image
+- `services/groupama-es-auth/Dockerfile` — Groupama employee-savings sidecar image
 - `docker/nginx.conf` — Nginx reverse proxy config
 - `docker/supervisord.conf` — supervisor (nginx + backend)
 - `docker/entrypoint.sh` — secret bootstrap + HSTS snippet + exec supervisord
@@ -161,6 +175,7 @@ docker compose -f docker/docker-compose.yml up
   → picsou:latest  (nginx:8080 → backend:9090)
   → docker-tr-auth (uvicorn:8001)
   → bourse-direct-auth (uvicorn:8001, internal only)
+  → groupama-es-auth (uvicorn:8001, internal only)
   → postgres:16-alpine (:5432)
 ```
 
@@ -171,6 +186,7 @@ docker compose -f docker/docker-compose.yml build
 docker save ghcr.io/zoeille/picsou-finance:latest \
   ghcr.io/zoeille/picsou-finance/tr-auth:latest \
   ghcr.io/zoeille/picsou-finance/bourse-direct-auth:latest \
+  ghcr.io/zoeille/picsou-finance/groupama-es-auth:latest \
   | gzip > picsou-release.tar.gz
 # On target machine:
 docker load < picsou-release.tar.gz
@@ -178,7 +194,7 @@ docker load < picsou-release.tar.gz
 
 ### Pulling from GHCR
 
-All three images are published by `.github/workflows/docker.yml` on every push
+All four images are published by `.github/workflows/docker.yml` on every push
 (matrix build, one entry per image). To deploy from the registry instead of
 building or loading a tar.gz:
 
@@ -187,6 +203,7 @@ building or loading a tar.gz:
 docker pull ghcr.io/zoeille/picsou-finance:1.0.0
 docker pull ghcr.io/zoeille/picsou-finance/tr-auth:1.0.0
 docker pull ghcr.io/zoeille/picsou-finance/bourse-direct-auth:1.0.0
+docker pull ghcr.io/zoeille/picsou-finance/groupama-es-auth:1.0.0
 ```
 
 Tag scheme:
@@ -234,15 +251,19 @@ docker build -f docker/Dockerfile --build-arg APP_VERSION=1.0.13 .
 - **Enabling the `tls` profile against a pre-built GHCR image does not get the HSTS fix.** `HSTS_ENABLED` gating lives in `nginx.conf` + `entrypoint.sh`, so an image built before that change still sends HSTS unconditionally — which is precisely the lockout combination with an internal-CA certificate. Pull a current image, or rebuild with `--build`.
 - **`TR_AUTH_URL` default in entrypoint is `http://127.0.0.1:8001`** (legacy single-container fallback). In docker-compose it is overridden to `http://tr-auth:8001` via the `environment:` block.
 - **Bourse Direct 2FA state is process-local.** Keep `bourse-direct-auth` at one replica unless request affinity or shared pending state is added.
+- **Groupama strong-authentication state is process-local.** Keep `groupama-es-auth` at one replica unless request affinity or shared pending state is added.
 - **Secrets are never regenerated.** If `/data/.secrets/jwt_secret` exists, it is reused. Deleting it will log out all users and invalidate all encrypted secrets in the DB.
 - **Spring Boot env var naming:** Properties under `app.*` require the `APP_` prefix. `app.finary.email` → `APP_FINARY_EMAIL`. Variables like `JWT_SECRET` work because `application.yml` maps them explicitly.
 - **Stale env vars removed (2026-04-19):** `TR_PHONE_NUMBER`, `TR_PIN`, `FINARY_TOTP`, `POWENS_*`, `FINARY_EMAIL`, `FINARY_PASSWORD`. Do not re-add them.
 
 ## Tests
 
-- No dedicated Docker integration tests. Build validation is manual: `docker build -f docker/Dockerfile .`.
+- CI builds both portfolio sidecar images and runs their deterministic parser,
+  lifecycle and browser-selector tests inside the real Chromium images.
+- Main-image validation remains manual: `docker build -f docker/Dockerfile .`.
 - Backend unit tests run separately via `./mvnw test` (not in Docker build — skipped with `-DskipTests`).
 
 ## Links
 
 - Related: [Trade Republic feature](./trade-republic.md) (tr-auth microservice)
+- Related: [Groupama employee-savings feature](./groupama-employee-savings.md)

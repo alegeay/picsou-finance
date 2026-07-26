@@ -4,6 +4,8 @@ public enum AccountType {
     LEP,
     PEA,
     COMPTE_TITRES,
+    PEE,
+    PERCOL,
     CRYPTO,
     CHECKING,
     SAVINGS,

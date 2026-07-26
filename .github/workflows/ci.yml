@@ -68,3 +68,21 @@ jobs:
           --workdir /tests
           picsou-bourse-direct-auth:test
           python -m unittest discover -v
+
+  groupama-es-sidecar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Build the Chromium-only sidecar image
+        run: docker build --tag picsou-groupama-es-auth:test services/groupama-es-auth
+      - name: Run parser, lifecycle, and browser selector tests
+        run: >-
+          docker run --rm --ipc=host
+          --env PYTHONPATH=/app
+          --volume "${{ github.workspace }}/services/groupama-es-auth/test_main.py:/tests/test_main.py:ro"
+          --volume "${{ github.workspace }}/services/groupama-es-auth/test_portfolio_parser.py:/tests/test_portfolio_parser.py:ro"
+          --workdir /tests
+          picsou-groupama-es-auth:test
+          python -m unittest discover -v

@@ -29,7 +29,8 @@ import { accountTypeLabelKey } from '@/lib/constants'
 import { type TimeRange } from '@/components/shared/TimeRangeSelector'
 import type { HoldingResponse, Transaction } from '@/types/api'
 
-const HOLDING_ACCOUNT_TYPES = ['PEA', 'COMPTE_TITRES', 'CRYPTO']
+const HOLDING_ACCOUNT_TYPES = ['PEA', 'COMPTE_TITRES', 'PEE', 'PERCOL', 'CRYPTO']
+const TRANSACTION_INVESTMENT_ACCOUNT_TYPES = ['PEA', 'COMPTE_TITRES', 'CRYPTO']
 
 export function AccountDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -60,6 +61,9 @@ export function AccountDetailPage() {
   const chartData = (history ?? []).map(s => ({ date: s.date, balance: s.balance }))
   const isLoan = account?.type === 'LOAN'
   const showHoldings = account ? HOLDING_ACCOUNT_TYPES.includes(account.type) : false
+  const supportsInvestmentTransactions = account
+    ? TRANSACTION_INVESTMENT_ACCOUNT_TYPES.includes(account.type)
+    : false
   const recentSnapshots = [...(history ?? [])].reverse().slice(0, 10)
 
   // The backend owns EUR valuation and falls back atomically to the broker snapshot.
@@ -200,7 +204,12 @@ export function AccountDetailPage() {
       )}
 
       {/* Realized P&L on closed positions (investment accounts only) */}
-      {showHoldings && <RealizedPnlSection accountId={accountId} enabled={showHoldings} />}
+      {supportsInvestmentTransactions && (
+        <RealizedPnlSection
+          accountId={accountId}
+          enabled={supportsInvestmentTransactions}
+        />
+      )}
 
       {/* Transactions */}
       {!isLoan && (transactions ? (
@@ -208,7 +217,7 @@ export function AccountDetailPage() {
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-base font-semibold">{t('accounts.transactions')}</h3>
             <div className="flex items-center gap-2">
-              {showHoldings && (
+              {supportsInvestmentTransactions && (
                 <Button size="sm" variant="outline" onClick={() => setShowImport(true)}>
                   <Upload className="mr-1.5 size-4" />
                   {t('import.importCsv')}
@@ -268,7 +277,7 @@ export function AccountDetailPage() {
       )}
 
       {/* Import CSV modal (investment accounts) */}
-      {account && showHoldings && (
+      {account && supportsInvestmentTransactions && (
         <ImportTransactionsModal
           open={showImport}
           onOpenChange={setShowImport}

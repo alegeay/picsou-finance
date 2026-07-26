@@ -88,6 +88,11 @@ export const SetupStepBourseDirect = lazy(() =>
     default: m.SetupStepBourseDirect,
   }))
 )
+export const SetupStepGroupamaEs = lazy(() =>
+  import('@/pages/setup/integrations/SetupStepGroupamaEs').then((m) => ({
+    default: m.SetupStepGroupamaEs,
+  }))
+)
 export const SetupStepTradeRepublic = lazy(() =>
   import('@/pages/setup/integrations/SetupStepTradeRepublic').then((m) => ({
     default: m.SetupStepTradeRepublic,

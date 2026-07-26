@@ -45,6 +45,12 @@ vi.mock('@/components/sync/BourseDirectPanel', () => ({
   ),
 }))
 
+vi.mock('@/components/sync/GroupamaEsPanel', () => ({
+  GroupamaEsPanel: ({ onConnected }: { onConnected?: () => void }) => (
+    <button onClick={onConnected}>groupama-es-wizard</button>
+  ),
+}))
+
 vi.stubGlobal('ResizeObserver', class {
   observe() {}
   unobserve() {}
@@ -138,6 +144,18 @@ describe('AddAccountModal Bourse Direct wizard', () => {
 
     fireEvent.click(screen.getByText('sync.bourseDirect.title'))
     fireEvent.click(screen.getByRole('button', { name: 'bourse-direct-wizard' }))
+
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
+})
+
+describe('AddAccountModal Groupama ES wizard', () => {
+  it('opens the connector and closes after a successful import', () => {
+    const onOpenChange = vi.fn()
+    render(<AddAccountModal open onOpenChange={onOpenChange} />)
+
+    fireEvent.click(screen.getByText('sync.groupamaEs.title'))
+    fireEvent.click(screen.getByRole('button', { name: 'groupama-es-wizard' }))
 
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })

@@ -199,7 +199,9 @@ public class HistoryService {
     /**
      * Build hourly net worth history for the last 24 hours.
      *
-     * For investment accounts (PEA, CT, Crypto): portfolio value = sum(holding.qty × intraday price at each hour).
+     * For publicly priced investment accounts (PEA, CT, Crypto): portfolio
+     * value = sum(holding.qty × intraday price at each hour).
+     * Groupama employee-savings plans keep their last reconciled provider value.
      * For bank/savings accounts: use today's balance snapshot (constant throughout the day).
      * For loans: negate the balance.
      */
@@ -230,6 +232,16 @@ public class HistoryService {
                 loanIds.add(accId);
             }
 
+            if (isGroupamaAccount(account)) {
+                accountBankBalance.put(accId, accountService.liveBalanceEur(account));
+                accountHoldings.put(accId, List.of());
+                accountHoldingsInvested.put(
+                    accId,
+                    accountService.calculateInvestedAmount(account)
+                );
+                continue;
+            }
+
             List<AccountHolding> holdings = holdingRepository.findByAccount_Id(accId);
 
             if (holdings.isEmpty()) {
@@ -240,7 +252,10 @@ public class HistoryService {
                     : accountService.liveBalanceEur(account);
                 accountBankBalance.put(accId, balance);
                 accountHoldings.put(accId, List.of());
-                accountHoldingsInvested.put(accId, BigDecimal.ZERO);
+                accountHoldingsInvested.put(
+                    accId,
+                    loanIds.contains(accId) ? BigDecimal.ZERO : balance
+                );
             } else {
                 List<HoldingData> holdingDataList = new ArrayList<>();
                 BigDecimal invested = BigDecimal.ZERO;
@@ -294,7 +309,9 @@ public class HistoryService {
                     BigDecimal value = loanIds.contains(accId) ? balance.negate() : balance;
                     aggTotal = aggTotal.add(value);
                     if (!loanIds.contains(accId)) {
-                        aggInvested = aggInvested.add(value);
+                        aggInvested = aggInvested.add(
+                            accountHoldingsInvested.getOrDefault(accId, value)
+                        );
                     }
                 } else {
                     // Investment account: compute market value at this hour
@@ -353,7 +370,9 @@ public class HistoryService {
 
         for (Account account : accounts) {
             List<AccountHolding> holdings = holdingRepository.findByAccount_Id(account.getId());
-            allHoldings.addAll(holdings);
+            if (!isGroupamaAccount(account)) {
+                allHoldings.addAll(holdings);
+            }
 
             if (account.getType() == AccountType.LOAN) {
                 liveTotal = liveTotal.subtract(accountService.liveBalanceEur(account));
@@ -419,6 +438,10 @@ public class HistoryService {
 
     public com.picsou.dto.PnlResponse buildPnl(List<Long> accountIds, Long memberId) {
         return buildPnl(accountIds, memberId, null);
+    }
+
+    private boolean isGroupamaAccount(Account account) {
+        return GroupamaEsSyncService.PROVIDER.equals(account.getProvider());
     }
 
     /** Per-account forward-filled snapshot data. */

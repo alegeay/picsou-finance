@@ -159,9 +159,10 @@ public class AccountService {
     }
 
     public List<HoldingResponse> getHoldings(Long accountId, Long memberId) {
-        getOrThrow(accountId, memberId); // validate account exists
+        Account account = getOrThrow(accountId, memberId);
+        boolean groupamaValuation = isGroupamaProvider(account);
         return holdingRepository.findByAccountIdOrderByCurrentPriceDesc(accountId).stream()
-            .map(this::toHoldingResponse)
+            .map(holding -> toHoldingResponse(holding, groupamaValuation))
             .toList();
     }
 
@@ -290,6 +291,14 @@ public class AccountService {
                 .map(debt -> loanAmortizationService.computeRemainingBalance(debt, LocalDate.now()))
                 .orElseGet(() -> priceService.toEur(account.getCurrentBalance(), account.getCurrency(), account.getTicker()));
         }
+        // Groupama employee-savings funds are FCPEs identified by provider-side
+        // support ids, not public market tickers. Their sync stores a complete,
+        // EUR-denominated plan total that has already been reconciled against all
+        // positions, so asking Yahoo to price those synthetic ids would only turn
+        // a trustworthy value into a partial one.
+        if (isGroupamaProvider(account)) {
+            return account.getCurrentBalance();
+        }
         List<AccountHolding> holdings = holdingRepository.findByAccount_Id(account.getId());
         if (holdings.isEmpty()) {
             return priceService.toEur(account.getCurrentBalance(), account.getCurrency(), account.getTicker());
@@ -305,7 +314,10 @@ public class AccountService {
                 // guess -- but it is not free: during a price-provider outage the balance (and
                 // any snapshot taken from it) silently shrinks by whatever those holdings were
                 // worth. Log it so the dip is explicable rather than mysterious.
-                if (qty != null && qty.signum() > 0) {
+                // signum() != 0 (not > 0): omitting an unpriced SHORT overstates the
+                // balance — a liability valued at 0 — which deserves the trace at least
+                // as much as the understated long.
+                if (qty != null && qty.signum() != 0) {
                     log.warn("No EUR price for holding {} (account {}) -- excluding it from the live balance",
                         h.getTicker(), account.getId());
                 }
@@ -313,13 +325,23 @@ public class AccountService {
             }
             liveValue = liveValue.add(qty.multiply(livePrice));
         }
-        // Bourse Direct reports an authoritative total in EUR. If Yahoo/OpenFIGI cannot
-        // price even one instrument, prefer that last successful broker valuation over a
-        // misleading partial total (cash + only the symbols Yahoo happened to resolve).
-        if ("Bourse Direct".equals(account.getProvider()) && !allHoldingsPriced) {
+        // Browser-backed providers report an authoritative, reconciled total in
+        // EUR. If Yahoo cannot price even one instrument (notably employee
+        // savings funds), prefer the last complete provider valuation over a
+        // misleading partial total.
+        if (usesAuthoritativeProviderValuation(account) && !allHoldingsPriced) {
             return account.getCurrentBalance();
         }
         return liveValue;
+    }
+
+    private boolean usesAuthoritativeProviderValuation(Account account) {
+        return "Bourse Direct".equals(account.getProvider())
+            || isGroupamaProvider(account);
+    }
+
+    private boolean isGroupamaProvider(Account account) {
+        return account != null && GroupamaEsSyncService.PROVIDER.equals(account.getProvider());
     }
 
     /**
@@ -358,7 +380,7 @@ public class AccountService {
     @Transactional
     public HoldingResponse updateHolding(Long accountId, Long memberId, String ticker,
             BigDecimal quantity, BigDecimal averageBuyIn) {
-        getOrThrow(accountId, memberId);
+        Account account = getOrThrow(accountId, memberId);
         AccountHolding h = holdingRepository.findByAccountIdAndTicker(accountId, ticker)
             .orElseThrow(() -> new ResourceNotFoundException("Holding not found"));
         h.setQuantity(quantity);
@@ -368,7 +390,7 @@ public class AccountService {
         h.setProviderValueEur(null);
         h.setProviderPnlEur(null);
         holdingRepository.save(h);
-        return toHoldingResponse(h);
+        return toHoldingResponse(h, isGroupamaProvider(account));
     }
 
     @Transactional
@@ -437,7 +459,10 @@ public class AccountService {
         return loanAmortizationService.compute(debt, LocalDate.now());
     }
 
-    private HoldingResponse toHoldingResponse(AccountHolding holding) {
+    private HoldingResponse toHoldingResponse(
+        AccountHolding holding,
+        boolean groupamaValuation
+    ) {
         BigDecimal currentPrice = holding.getCurrentPrice();
         BigDecimal currentPriceEur = null;
         Instant priceUpdatedAt = null;
@@ -448,7 +473,14 @@ public class AccountService {
         // currency without conversion — using it as a fallback would silently
         // produce native-as-EUR values. Better to return null and surface
         // "price unknown" than to invent a wrong number.
-        if (holding.getTicker() != null && !holding.getTicker().isBlank()) {
+        //
+        // Groupama is the deliberate exception: the connector only emits EUR,
+        // reconciles each position with the plan total, and stores synthetic
+        // support ids that public quote services cannot resolve.
+        if (groupamaValuation) {
+            currentPriceEur = currentPrice;
+            priceUpdatedAt = holding.getLastSyncedAt();
+        } else if (holding.getTicker() != null && !holding.getTicker().isBlank()) {
             currentPriceEur = priceService.getPriceEur(holding.getTicker());
             priceUpdatedAt = holding.getLastSyncedAt();
         }
@@ -459,14 +491,21 @@ public class AccountService {
         if (costBasis == null && averageBuyIn != null) {
             costBasis = averageBuyIn.multiply(quantity);
         }
-        BigDecimal currentValueEur = currentPriceEur != null
-            ? currentPriceEur.multiply(quantity)
-            : holding.getProviderValueEur();
+        BigDecimal currentValueEur = groupamaValuation && holding.getProviderValueEur() != null
+            ? holding.getProviderValueEur()
+            : currentPriceEur != null
+                ? currentPriceEur.multiply(quantity)
+                : holding.getProviderValueEur();
         BigDecimal pnlEur = currentValueEur != null && costBasis != null
             ? currentValueEur.subtract(costBasis)
             : holding.getProviderPnlEur();
+        // abs(): a short position has a negative cost basis, and dividing by it would
+        // flip the sign — a winning short would display as a loss. The percentage must
+        // carry the sign of the P&L itself, the denominator is only a magnitude.
+        // The null check on costBasis is required since pnlEur can now fall back to the
+        // provider-reported P&L, which is available even when no cost basis is known.
         BigDecimal pnlPercent = (pnlEur != null && costBasis != null && costBasis.signum() != 0)
-            ? pnlEur.divide(costBasis, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100))
+            ? pnlEur.divide(costBasis.abs(), 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100))
             : null;
 
         return new HoldingResponse(

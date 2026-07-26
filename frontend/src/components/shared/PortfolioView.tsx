@@ -21,6 +21,8 @@ const SORT_OPTIONS: { value: SortBy; labelKey: string }[] = [
 const ACCOUNT_TYPE_I18N: Record<string, string> = {
   PEA: 'accountTypes.pea',
   COMPTE_TITRES: 'accountTypes.compteTitres',
+  PEE: 'accountTypes.pee',
+  PERCOL: 'accountTypes.percol',
   CRYPTO: 'accountTypes.crypto',
   CHECKING: 'accountTypes.checking',
   SAVINGS: 'accountTypes.savings',
