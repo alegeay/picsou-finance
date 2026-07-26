@@ -131,6 +131,25 @@ class PortfolioParserTest(unittest.TestCase):
             Decimal("3000.00"),
         )
 
+    def test_normalizes_per_collectif_and_peg_labels(self):
+        per_collectif = account(
+            "PER Collectif",
+            "100,00 €",
+            "<tr><td>Support retraite</td><td>100,00 €</td><td></td></tr>",
+        )
+        peg = account(
+            "PEG",
+            "200,00 €",
+            "<tr><td>Support entreprise</td><td>200,00 €</td><td></td></tr>",
+        )
+
+        parsed = parse_portfolio(page(per_collectif, peg))
+
+        self.assertEqual(
+            [item["type"] for item in parsed],
+            ["PERCOL", "PEE"],
+        )
+
     def test_skips_an_unsupported_blocked_current_account(self):
         ccb = account(
             "Compte courant bloqué",
@@ -171,6 +190,30 @@ class PortfolioParserTest(unittest.TestCase):
         self.assertEqual(
             parsed[0]["positions"][0]["label"],
             "TotalEnergies Actionnariat",
+        )
+
+    def test_ignores_unmarked_numeric_rows_when_holdings_have_portal_markers(self):
+        rows = """
+          <tr>
+            <td>Support entreprise</td>
+            <td>200,00 €</td>
+            <td><span id="diff:marked:rootSpan">+2,0 %</span></td>
+          </tr>
+          <tr>
+            <td>Versements pris en compte</td>
+            <td>50,00 €</td>
+            <td></td>
+          </tr>
+        """
+
+        parsed = parse_portfolio(page(
+            account("Épargne entreprise", "200,00 €", rows),
+        ))
+
+        self.assertEqual(len(parsed[0]["positions"]), 1)
+        self.assertEqual(
+            parsed[0]["positions"][0]["label"],
+            "Support entreprise",
         )
 
     def test_account_identity_is_stable_for_the_same_profile_and_plan(self):

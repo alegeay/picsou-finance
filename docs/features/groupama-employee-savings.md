@@ -101,6 +101,11 @@ amount is never converted to zero.
 For each supported plan, the sidecar:
 
 - classifies the plan as PEE or PERCOL from its label;
+- normalizes current `PER Collectif`/`PERECOL` and `PEG` portal labels to
+  PERCOL and PEE respectively;
+- follows the portal's popup anchors to distinguish real investment rows from
+  numeric presentation or summary rows, with a compatibility fallback for
+  variants that expose no anchors;
 - expands a managed-profile popup only when its underlying support values
   reconcile with the profile value;
 - follows only HTTPS support-detail links on the expected Groupama portal host;
@@ -200,6 +205,11 @@ stable RFC 7807 `code` values:
 
 Only `SESSION_EXPIRED` deactivates a stored session. Other portfolio failures
 remain retryable without requiring credentials again.
+
+Completeness and normalized-payload failures log only a controlled structural
+reason, such as the number of parsed positions or validation field paths. Raw
+HTML, labels, balances, cookies and other portfolio values remain absent from
+logs.
 
 ## User interface
 

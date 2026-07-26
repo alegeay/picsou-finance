@@ -773,7 +773,23 @@ async def accounts(req: AccountsRequest) -> list[AccountPayload]:
             sum(len(account["positions"]) for account in public),
         )
         return [AccountPayload.model_validate(account) for account in public]
-    except (PortfolioFormatError, ValidationError) as exc:
+    except PortfolioFormatError as exc:
+        log.warning(
+            "Groupama ES portfolio rejected by completeness checks (reason=%s)",
+            exc,
+        )
+        raise HTTPException(status_code=502, detail="PORTFOLIO_INCOMPLETE") from exc
+    except ValidationError as exc:
+        issues = sorted({
+            ".".join(str(part) for part in error.get("loc", ()))
+            + ":"
+            + str(error.get("type", "unknown"))
+            for error in exc.errors(include_url=False, include_input=False)
+        })
+        log.warning(
+            "Groupama ES normalized portfolio failed validation (issues=%s)",
+            ",".join(issues[:20]),
+        )
         raise HTTPException(status_code=502, detail="PORTFOLIO_INCOMPLETE") from exc
     except HTTPException:
         raise

@@ -93,6 +93,10 @@ def _account_type(label: str) -> str | None:
     if any(marker in normalized for marker in (
         "percol",
         "perco",
+        "perecol",
+        "per collectif",
+        "per d'entreprise collectif",
+        "per entreprise collectif",
         "epargne retraite",
         "plan d'epargne retraite",
         "plan epargne retraite",
@@ -104,7 +108,7 @@ def _account_type(label: str) -> str | None:
         "epargne groupe",
         "plan d'epargne entreprise",
         "plan epargne entreprise",
-    )):
+    )) or re.search(r"\bpeg\b", normalized):
         return "PEE"
     return None
 
@@ -290,6 +294,25 @@ def _parse_positions(root: BeautifulSoup, holdings_table: Tag) -> list[dict[str,
     positions: list[dict[str, Any]] = []
     tbody = holdings_table.find("tbody")
     rows = tbody.find_all("tr", recursive=False) if tbody else holdings_table.find_all("tr")
+    marked_rows = [
+        row
+        for row in rows
+        if any(
+            cell.find(
+                "span",
+                id=lambda value: value and "rootSpan" in value,
+            )
+            is not None
+            for cell in row.find_all("td", recursive=False)[:3]
+        )
+    ]
+    # The current CMES/Groupama markup marks every real investment row with a
+    # popup anchor in one of its first three cells. Numeric presentation rows
+    # can otherwise look like investments and make the portfolio total appear
+    # duplicated. Retain the unmarked fallback for portal variants that do not
+    # emit those anchors at all.
+    if marked_rows:
+        rows = marked_rows
     for row in rows:
         cells = row.find_all("td", recursive=False)
         if len(cells) < 2:
@@ -300,6 +323,7 @@ def _parse_positions(root: BeautifulSoup, holdings_table: Tag) -> list[dict[str,
             or row_heading.startswith("total du ")
             or row_heading.startswith("total de ")
             or row_heading.startswith("total des ")
+            or row_heading.startswith("montant total")
         ):
             continue
         try:
@@ -323,7 +347,8 @@ def _parse_positions(root: BeautifulSoup, holdings_table: Tag) -> list[dict[str,
                 )
                 if not _money_close(breakdown_total, valuation):
                     raise PortfolioFormatError(
-                        "Managed-profile breakdown does not match its valuation"
+                        "Managed-profile breakdown does not match its valuation "
+                        f"(positions={len(breakdown)})"
                     )
                 positions.extend(breakdown)
                 continue
@@ -388,7 +413,8 @@ def parse_portfolio(html: str) -> list[dict[str, Any]]:
         )
         if not _money_close(position_total, balance):
             raise PortfolioFormatError(
-                "Investment valuations do not match the account balance"
+                "Investment valuations do not match the account balance "
+                f"(positions={len(positions)})"
             )
 
         external_id = _stable_token(
@@ -409,7 +435,10 @@ def parse_portfolio(html: str) -> list[dict[str, Any]]:
         })
 
     if not accounts:
-        raise PortfolioFormatError("No supported PEE or PERCOL account found")
+        raise PortfolioFormatError(
+            "No supported PEE or PERCOL account found "
+            f"(candidates={len(candidates)})"
+        )
     return accounts
 
 
