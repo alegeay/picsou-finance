@@ -80,6 +80,32 @@ def optional_decimal_value(raw: Any, field: str = "value") -> Decimal | None:
     return decimal_value(raw, field)
 
 
+def _monetary_cell_value(cell: Tag, field: str) -> Decimal:
+    """Read one unambiguous amount from a portal table cell."""
+    raw = cell.get_text(" ", strip=True)
+    try:
+        return decimal_value(raw, field)
+    except PortfolioFormatError as whole_cell_error:
+        candidates: list[Decimal] = []
+        for fragment in cell.stripped_strings:
+            if (
+                "€" not in fragment
+                and re.search(r"\bEUR\b", fragment, flags=re.IGNORECASE) is None
+            ):
+                continue
+            try:
+                candidates.append(decimal_value(fragment, field))
+            except PortfolioFormatError:
+                continue
+
+        distinct = set(candidates)
+        if len(distinct) == 1:
+            return distinct.pop()
+        if len(distinct) > 1:
+            raise PortfolioFormatError(f"Ambiguous {field}") from whole_cell_error
+        raise whole_cell_error
+
+
 def _money_close(actual: Decimal, expected: Decimal) -> bool:
     tolerance = max(
         MONEY_ABSOLUTE_TOLERANCE,
@@ -156,7 +182,7 @@ def _account_balance(container: Tag) -> Decimal:
         if sibling is None:
             sibling = span.find_next()
         if sibling is not None:
-            return decimal_value(sibling.get_text(" ", strip=True), "account balance")
+            return _monetary_cell_value(sibling, "account balance")
     raise PortfolioFormatError("Missing account balance")
 
 
@@ -255,8 +281,8 @@ def _breakdown_positions(popup: Tag) -> list[dict[str, Any]]:
         if not label:
             continue
         try:
-            valuation = decimal_value(
-                cells[1].get_text(" ", strip=True),
+            valuation = _monetary_cell_value(
+                cells[1],
                 "managed-profile investment valuation",
             )
         except PortfolioFormatError:
@@ -327,8 +353,8 @@ def _parse_positions(root: BeautifulSoup, holdings_table: Tag) -> list[dict[str,
         ):
             continue
         try:
-            valuation = decimal_value(
-                cells[1].get_text(" ", strip=True),
+            valuation = _monetary_cell_value(
+                cells[1],
                 "investment valuation",
             )
         except PortfolioFormatError:
@@ -452,7 +478,7 @@ def parse_unit_value(html: str) -> Decimal | None:
         if value_cell is None:
             continue
         try:
-            value = decimal_value(value_cell.get_text(" ", strip=True), "unit value")
+            value = _monetary_cell_value(value_cell, "unit value")
         except PortfolioFormatError:
             continue
         return value if value > 0 else None

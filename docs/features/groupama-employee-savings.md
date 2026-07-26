@@ -96,7 +96,10 @@ The portal uses generated element identifiers, so
 `portfolio_parser.py` locates data through stable semantic headings such as
 `Nom du support`, `Nom du profil`, `Nom du compte` and `Montant total`.
 French and English number formats are parsed strictly; a malformed required
-amount is never converted to zero.
+amount is never converted to zero. Portal table cells may wrap one amount with
+decorative labels or availability metadata. In that case the parser accepts
+the value only when exactly one distinct, independently valid EUR fragment is
+present; multiple different monetary fragments remain an incomplete snapshot.
 
 For each supported plan, the sidecar:
 

@@ -101,6 +101,45 @@ class PortfolioParserTest(unittest.TestCase):
             Decimal("50.25"),
         )
 
+    def test_parses_one_currency_fragment_from_a_decorated_valuation_cell(self):
+        rows = """
+          <tr>
+            <td>Support entreprise</td>
+            <td>
+              <a href="#">
+                <span>Montant</span>
+                <span>200,00 €</span>
+                <span>Parts disponibles</span>
+                <span>42</span>
+              </a>
+            </td>
+            <td><span id="diff:decorated:rootSpan">+2,0 %</span></td>
+          </tr>
+        """
+
+        parsed = parse_portfolio(page(
+            account("Épargne entreprise", "200,00 €", rows),
+        ))
+
+        self.assertEqual(
+            parsed[0]["positions"][0]["currentValueEur"],
+            Decimal("200.00"),
+        )
+
+    def test_rejects_ambiguous_currency_fragments_in_a_valuation_cell(self):
+        rows = """
+          <tr>
+            <td>Support entreprise</td>
+            <td><span>150,00 €</span><span>50,00 €</span></td>
+            <td><span id="diff:ambiguous:rootSpan">+2,0 %</span></td>
+          </tr>
+        """
+
+        with self.assertRaises(PortfolioFormatError):
+            parse_portfolio(page(
+                account("Épargne entreprise", "200,00 €", rows),
+            ))
+
     def test_expands_a_percol_managed_profile(self):
         rows = """
           <tr>
