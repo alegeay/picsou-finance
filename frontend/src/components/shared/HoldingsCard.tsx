@@ -31,6 +31,8 @@ const FILTER_TABS: { value: FilterType; labelKey: string; match: (type: Account[
   { value: 'all', labelKey: 'dashboard.allHoldings', match: () => true },
   { value: 'PEA', labelKey: 'accountTypes.pea', match: (t) => t === 'PEA' },
   { value: 'COMPTE_TITRES', labelKey: 'accountTypes.compteTitres', match: (t) => t === 'COMPTE_TITRES' },
+  { value: 'PEE', labelKey: 'accountTypes.pee', match: (t) => t === 'PEE' },
+  { value: 'PERCOL', labelKey: 'accountTypes.percol', match: (t) => t === 'PERCOL' },
   { value: 'CRYPTO', labelKey: 'accountTypes.crypto', match: (t) => t === 'CRYPTO' },
   { value: 'cash', labelKey: 'portfolio.cash', match: (t) => ['CHECKING', 'SAVINGS', 'LEP', 'OTHER'].includes(t) },
 ]
@@ -38,6 +40,8 @@ const FILTER_TABS: { value: FilterType; labelKey: string; match: (type: Account[
 const ACCOUNT_TYPE_BADGE: Record<string, string> = {
   PEA: 'accountTypes.pea',
   COMPTE_TITRES: 'accountTypes.compteTitres',
+  PEE: 'accountTypes.pee',
+  PERCOL: 'accountTypes.percol',
   CRYPTO: 'accountTypes.crypto',
   CHECKING: 'accountTypes.checking',
   SAVINGS: 'accountTypes.savings',

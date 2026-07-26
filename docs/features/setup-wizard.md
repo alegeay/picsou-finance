@@ -1,6 +1,6 @@
 # Feature: First-launch Setup Wizard
 
-> Last updated: 2026-07-19 (HSTS is opt-in, no longer an always-on nginx header)
+> Last updated: 2026-07-26 (Groupama employee-savings integration catalog)
 
 ## Context
 
@@ -63,7 +63,7 @@ Frontend:
   — the main-line steps.
 - `frontend/src/pages/setup/integrations/SetupStepEnableBanking.tsx` + 5 substep
   components under `enablebanking/` — the guided EB flow.
-- `frontend/src/pages/setup/integrations/SetupStep{BoursoBank,BourseDirect,TradeRepublic,Finary,Crypto}.tsx`
+- `frontend/src/pages/setup/integrations/SetupStep{BoursoBank,BourseDirect,GroupamaEs,TradeRepublic,Finary,Crypto}.tsx`
   — the other integration substeps.
 - `frontend/src/features/setup/{api,hooks,schemas,guards}.tsx` — dedicated axios
   client (no 401 interceptor), react-query hooks, zod schemas, route guards.
@@ -93,6 +93,7 @@ Hello greeting → Admin → Security → Integration picker
     │                                    ├─ Enable Banking: 5 substeps
     │                                    ├─ BoursoBank: sidecar ping
     │                                    ├─ Bourse Direct: post-setup login acknowledgement
+    │                                    ├─ Groupama employee savings: post-setup login acknowledgement
     │                                    ├─ Trade Republic: ack
     │                                    ├─ Finary: ack
     │                                    └─ Crypto: ensure key exists
@@ -241,7 +242,8 @@ The wizard makes zero outbound requests on first load:
   CSV origin persistence, empty-origin rejection, consistent integration-key formatting.
 - `SetupControllerTest` — endpoint-level: admin seed returns 410 after completion,
   EB keypair regenerate-flag on first call vs. idempotent subsequent calls, EB
-  `test` only flips the integration flag on success, BoursoBank health / Bourse Direct / TR / Finary
+  `test` only flips the integration flag on success, BoursoBank health /
+  Bourse Direct / Groupama employee savings / TR / Finary
   acknowledge flows, crypto-key flagging for existing vs. freshly generated, rate
   limit returns 429 after bucket drain.
 - `EnableBankingKeyPairServiceTest` — first-call persistence of private PEM, idempotent

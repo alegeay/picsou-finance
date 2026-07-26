@@ -20,6 +20,7 @@ public class PriceService {
 
     private static final Logger log = LoggerFactory.getLogger(PriceService.class);
     private static final long CACHE_TTL_SECONDS = 900; // 15 minutes
+    private static final String GROUPAMA_INTERNAL_TICKER_PREFIX = "GES_";
 
     private final CoinGeckoPriceProvider coinGecko;
     private final YahooFinancePriceProvider yahoo;
@@ -46,6 +47,9 @@ public class PriceService {
         }
 
         String upper = ticker.toUpperCase(Locale.ROOT);
+        if (isProviderInternalTicker(upper)) {
+            return null;
+        }
 
         // Check cache
         CachedPrice cached = priceCache.get(upper);
@@ -82,9 +86,16 @@ public class PriceService {
         Set<String> stockTickers = new HashSet<>();
 
         for (String ticker : tickers) {
+            if (ticker == null || ticker.isBlank()) {
+                continue;
+            }
             String upper = ticker.toUpperCase(Locale.ROOT);
             if ("EUR".equals(upper)) {
                 result.put(upper, BigDecimal.ONE);
+            } else if (isProviderInternalTicker(upper)) {
+                // Groupama support ids are opaque provider identifiers, not
+                // symbols that may be disclosed to public market-data APIs.
+                continue;
             } else if (coinGecko.supports(upper)) {
                 cryptoTickers.add(upper);
             } else {
@@ -172,8 +183,11 @@ public class PriceService {
         int failed = 0;
 
         for (String ticker : tickers) {
+            if (ticker == null || ticker.isBlank()) {
+                continue;
+            }
             String upper = ticker.toUpperCase(Locale.ROOT);
-            if ("EUR".equals(upper)) continue;
+            if ("EUR".equals(upper) || isProviderInternalTicker(upper)) continue;
 
             // Guard per ticker: this runs from PriceBackfillRunner, an ApplicationRunner, so
             // an unguarded throw here would fail Spring Boot startup outright.
@@ -242,11 +256,19 @@ public class PriceService {
         }
 
         String upper = ticker.toUpperCase(Locale.ROOT);
+        if (isProviderInternalTicker(upper)) {
+            return Map.of();
+        }
 
         if (coinGecko.supports(upper)) {
             return coinGecko.getIntradayPricesEur(upper, from, to);
         } else {
             return yahoo.getIntradayPricesEur(upper, from, to);
         }
+    }
+
+    static boolean isProviderInternalTicker(String ticker) {
+        return ticker != null
+            && ticker.toUpperCase(Locale.ROOT).startsWith(GROUPAMA_INTERNAL_TICKER_PREFIX);
     }
 }

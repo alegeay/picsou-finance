@@ -1,6 +1,6 @@
 # Feature: Add Account Modal
 
-> Last updated: 2026-07-07
+> Last updated: 2026-07-26 (Groupama employee-savings connector)
 
 ## Context
 
@@ -10,7 +10,10 @@ Creating a new account or connecting a sync provider required two separate entry
 
 The `AddAccountModal` is a state-machine dialog with two levels:
 
-1. **Selector screen** — 6 buttons in a grid (Banks, Exchanges, Wallets, Trade Republic, Finary, Manual). Each sync button enters its wizard; the Manual button opens the existing `AccountForm` in a separate dialog.
+1. **Selector screen** — 8 buttons in a grid (Banks, Exchanges, Wallets,
+   Trade Republic, Bourse Direct, Groupama employee savings, Finary, Manual).
+   Each sync button enters its wizard; the Manual button opens the existing
+   `AccountForm` in a separate dialog.
 2. **Wizard screens** — Each sync type has its own compact wizard with a back button. Each wizard manages its own loading and error state inline.
 
 ### Key files
@@ -18,6 +21,8 @@ The `AddAccountModal` is a state-machine dialog with two levels:
 - `frontend/src/components/shared/AddAccountModal.tsx` — main component (contains all sub-wizards)
 - `frontend/src/pages/accounts/AccountsPage.tsx` — wires `AddAccountModal` for create, keeps `AccountForm` for edit
 - `frontend/src/features/sync/hooks.ts` — all sync mutation hooks reused by the wizards
+- `frontend/src/components/sync/{BourseDirectPanel,GroupamaEsPanel}.tsx` —
+  reusable browser-connector flows shared with the Sync page
 - `frontend/src/components/ui/input-otp.tsx` — shadcn InputOTP component (installed for TR PIN and verification code)
 
 ### Flow
@@ -33,6 +38,10 @@ AccountsPage → "Add account" button
        │    └─ pick chain → address + label → add → success
        ├─ Trade Republic → TradeRepublicWizard
        │    └─ phone + PIN (InputOTP 4-digit) → verification code (InputOTP 4-digit) → success
+       ├─ Bourse Direct → BourseDirectPanel
+       │    └─ login + password → 6-digit OTP when required → background import
+       ├─ Groupama employee savings → GroupamaEsPanel
+       │    └─ login + password → 4-to-8-digit OTP when required → PEE/PERCOL import
        ├─ Finary → FinaryWizard (3-step)
        │    └─ login/upload → account mapping → results
        └─ Manual → AccountForm (separate dialog)
@@ -82,7 +91,7 @@ This closed issue #9: a free-text code like `AMAT` used to throw a `RangeError` 
 
 | Choice | Why | Rejected alternative |
 |--------|-----|----------------------|
-| Single file with sub-components | All wizards share the same imports, hooks, and patterns | Separate file per wizard |
+| Main modal with reusable connector panels | Simple providers stay local while browser connectors share one tested flow with the Sync page | Duplicate Bourse Direct/Groupama forms in each entry point |
 | `InputOTP` for TR PIN and verification code | shadcn component, consistent UX for digit-only inputs | Regular password input |
 | `AccountForm` reused for manual | Already existed, handles validation and color picking | Inline form in the modal |
 | Per-wizard error state (no global overlay) | Global `isPending` unmounts the wizard, losing error state (React no-op on unmounted setter) | Global `onPending` callback |
@@ -96,21 +105,34 @@ This closed issue #9: a free-text code like `AMAT` used to throw a `RangeError` 
 - **Trade Republic initiation errors stay on credentials** — never move the
   wizard to the verification-code step unless `/tr/auth/initiate` returned a
   process id. TAN completion errors are the only errors that keep the code step
-  visible for retry.
+visible for retry.
+
+The Bourse Direct and Groupama panels also reuse their dedicated Sync-page
+state machines. Credentials and OTPs are cleared after submission, and
+`onConnected` fires only when the queued portfolio import reaches `SUCCESS`;
+authentication alone does not close the modal.
 - **Bank OAuth is fire-and-forget** — `window.location.href = data.authLink` redirects the entire page. The modal does not reach a success state; the redirect carries the user away. Error handling (e.g. `REDIRECT_URI_NOT_ALLOWED`) surfaces as a banner before the redirect happens.
 - **`ENABLEBANKING_REDIRECT_URI` must match the EB portal** — see [bank-sync.md](./bank-sync.md).
-- **Finary wizard is the only multi-step wizard** (3 steps: login/upload → mapping → results). All others are single-step.
+- **Finary is the only three-step mapping wizard** (login/upload → mapping →
+  results). Browser connectors can still have credentials and OTP phases.
+- **Groupama OTPs are four to eight digits.** The panel strips non-digits,
+  clears secrets after use and lets the backend enforce the same range.
 - **Edit flow is unchanged** — `AccountsPage` uses `AccountForm` for editing. The modal is create-only.
 
 ## Tests
 
 - `frontend/src/lib/utils.test.ts` — `formatCurrency` regression case: an invalid code does not throw
   and the raw code appears in the output (issue #9).
-- `frontend/src/components/shared/AddAccountModal.test.tsx` — Trade Republic wizard regression cases for initiation failure staying on credentials and TAN completion failure staying on the code step.
+- `frontend/src/components/shared/AddAccountModal.test.tsx` — Trade Republic
+  error-state regressions plus Bourse Direct and Groupama panel completion.
+- `frontend/src/pages/sync/GroupamaEsTab.test.tsx` — credentials, OTP,
+  actionable errors, secret clearing and background-success behavior.
 - `backend/src/test/java/com/picsou/validation/CurrencyValidatorTest.java` — accepts valid ISO 4217
   codes, rejects unknown ones, leaves null/blank to `@NotBlank`.
 
 ## Links
 
 - i18n keys: `addAccount.*`, sync keys reused from `sync.*` namespace in `en.json` / `fr.json`
-- Related: [Finary import](./finary-import.md), [Trade Republic](./trade-republic.md), [Bank sync](./bank-sync.md), [Crypto tracking](./crypto-tracking.md)
+- Related: [Groupama employee savings](./groupama-employee-savings.md),
+  [Finary import](./finary-import.md), [Trade Republic](./trade-republic.md),
+  [Bank sync](./bank-sync.md), [Crypto tracking](./crypto-tracking.md)

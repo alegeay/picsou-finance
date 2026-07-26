@@ -197,6 +197,8 @@
     "lep": "LEP",
     "pea": "PEA",
     "compteTitres": "Compte titres",
+    "pee": "Plan d'épargne entreprise (PEE)",
+    "percol": "Plan d'épargne retraite collectif (PERCOL)",
     "crypto": "Crypto",
     "realEstate": "Immobilier",
     "loan": "Prêt",
@@ -404,6 +406,7 @@
       "wallets": "Bitcoin, Ethereum, BNB, Solana...",
       "tr": "Trade Republic",
       "bourseDirect": "Synchroniser vos PEA et CTO",
+      "groupamaEs": "Synchroniser vos PEE et PERCOL Groupama",
       "finary": "Importer depuis Finary",
       "manual": "Créer un compte manuellement"
     }
@@ -608,6 +611,37 @@
         "formatChanged": "Le format du portefeuille Bourse Direct a changé. Vos données existantes ont été conservées.",
         "invalidData": "Bourse Direct a renvoyé des données incohérentes. Vos données existantes ont été conservées.",
         "serverError": "Impossible de joindre Bourse Direct. Veuillez réessayer."
+      }
+    },
+    "groupamaEs": {
+      "title": "Groupama Épargne Salariale",
+      "login": "Identifiant",
+      "password": "Mot de passe",
+      "otpCode": "Code de sécurité",
+      "otpPrompt": "Saisissez le code envoyé par Groupama Épargne Salariale.",
+      "connect": "Se connecter",
+      "connecting": "Connexion en cours…",
+      "validate": "Valider le code",
+      "validating": "Validation en cours…",
+      "sync": "Synchroniser",
+      "queued": "Synchronisation en attente…",
+      "syncing": "Synchronisation en cours…",
+      "syncSuccess": "Épargne salariale synchronisée.",
+      "clearSession": "Déconnecter",
+      "noSession": "Aucune session active",
+      "sessionActive": "Session active",
+      "scope": "Synchronise les soldes, supports et plus ou moins-values communiquées par Groupama pour vos PEE et PERCOL.",
+      "errors": {
+        "tooManyAttempts": "Trop de tentatives. Veuillez patienter.",
+        "invalidCredentials": "Identifiants Groupama Épargne Salariale invalides.",
+        "invalidCode": "Code de sécurité invalide ou expiré. Recommencez la connexion.",
+        "authAttemptExpired": "La tentative d’authentification a expiré. Recommencez la connexion.",
+        "sessionExpired": "La session Groupama Épargne Salariale a expiré. Veuillez vous reconnecter.",
+        "actionRequired": "Groupama demande une action dans son espace client. Terminez-la sur le portail, puis reconnectez-vous dans Picsou.",
+        "portfolioIncomplete": "Groupama a renvoyé un portefeuille incomplet. Vos données existantes ont été conservées.",
+        "formatChanged": "Le format du portail Groupama a changé. Vos données existantes ont été conservées.",
+        "invalidData": "Groupama a renvoyé des données incohérentes. Vos données existantes ont été conservées.",
+        "serverError": "Impossible de joindre Groupama Épargne Salariale. Veuillez réessayer."
       }
     }
   },
@@ -841,6 +875,7 @@
       "enablebanking": "Enable Banking",
       "boursobank": "BoursoBank",
       "boursedirect": "Bourse Direct",
+      "groupamaes": "Groupama Épargne Salariale",
       "traderepublic": "Trade Republic",
       "finary": "Finary",
       "crypto": "Crypto"
@@ -1013,6 +1048,10 @@
           "title": "Bourse Direct",
           "description": "Synchronisez directement vos positions PEA et compte-titres avec une authentification 2FA."
         },
+        "groupamaes": {
+          "title": "Groupama Épargne Salariale",
+          "description": "Synchronisez directement vos plans PEE et PERCOL depuis l’espace client Groupama."
+        },
         "traderepublic": {
           "title": "Trade Republic",
           "description": "Synchronisez votre portefeuille Trade Republic avec vos identifiants. Vous les ajouterez au moment de créer le compte."
@@ -1125,6 +1164,13 @@
       "tip": "Picsou conserve uniquement une session chiffrée. Le mot de passe et le code 2FA ne sont jamais enregistrés. Les comptes restent rattachés à leur PEA ou CTO.",
       "cta": "Activer Bourse Direct",
       "skip": "Ne pas activer Bourse Direct"
+    },
+    "groupamaEs": {
+      "title": "Groupama Épargne Salariale est prêt.",
+      "body": "Après l’installation, connectez-vous avec vos identifiants Groupama Épargne Salariale pour importer vos PEE et PERCOL.",
+      "tip": "Picsou conserve uniquement une session navigateur chiffrée. Le mot de passe et le code de sécurité ne sont jamais enregistrés.",
+      "cta": "Activer Groupama Épargne Salariale",
+      "skip": "Ne pas activer Groupama Épargne Salariale"
     },
     "tr": {
       "title": "Trade Republic est prêt.",

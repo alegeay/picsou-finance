@@ -197,6 +197,8 @@
     "lep": "LEP",
     "pea": "PEA",
     "compteTitres": "Brokerage",
+    "pee": "Employee savings plan (PEE)",
+    "percol": "Collective retirement savings (PERCOL)",
     "crypto": "Crypto",
     "realEstate": "Real estate",
     "loan": "Loan",
@@ -404,6 +406,7 @@
       "wallets": "Bitcoin, Ethereum, BNB, Solana...",
       "tr": "Trade Republic",
       "bourseDirect": "Sync your PEA and securities accounts",
+      "groupamaEs": "Sync your Groupama PEE and PERCOL",
       "finary": "Import from Finary",
       "manual": "Create an account manually"
     }
@@ -608,6 +611,37 @@
         "formatChanged": "Bourse Direct changed its portfolio format. Your existing data was kept unchanged.",
         "invalidData": "Bourse Direct returned inconsistent portfolio data. Your existing data was kept unchanged.",
         "serverError": "Could not reach Bourse Direct. Please try again."
+      }
+    },
+    "groupamaEs": {
+      "title": "Groupama Employee Savings",
+      "login": "Username",
+      "password": "Password",
+      "otpCode": "Security code",
+      "otpPrompt": "Enter the code sent by Groupama Employee Savings.",
+      "connect": "Sign in",
+      "connecting": "Signing in…",
+      "validate": "Validate code",
+      "validating": "Validating…",
+      "sync": "Sync",
+      "queued": "Sync queued…",
+      "syncing": "Syncing…",
+      "syncSuccess": "Employee savings synced.",
+      "clearSession": "Disconnect",
+      "noSession": "No active session",
+      "sessionActive": "Active session",
+      "scope": "Syncs PEE and PERCOL balances, funds and provider-reported gains or losses.",
+      "errors": {
+        "tooManyAttempts": "Too many attempts. Please wait.",
+        "invalidCredentials": "Invalid Groupama Employee Savings credentials.",
+        "invalidCode": "Invalid or expired security code. Start the connection again.",
+        "authAttemptExpired": "The authentication attempt expired. Start the connection again.",
+        "sessionExpired": "The Groupama Employee Savings session expired. Please reconnect.",
+        "actionRequired": "Groupama requires an action in its customer portal. Complete it there, then reconnect in Picsou.",
+        "portfolioIncomplete": "Groupama returned an incomplete portfolio. Your existing data was preserved.",
+        "formatChanged": "The Groupama portal format changed. Your existing data was preserved.",
+        "invalidData": "Groupama returned inconsistent data. Your existing data was preserved.",
+        "serverError": "Could not reach Groupama Employee Savings. Please try again."
       }
     }
   },
@@ -841,6 +875,7 @@
       "enablebanking": "Enable Banking",
       "boursobank": "BoursoBank",
       "boursedirect": "Bourse Direct",
+      "groupamaes": "Groupama Employee Savings",
       "traderepublic": "Trade Republic",
       "finary": "Finary",
       "crypto": "Crypto"
@@ -1017,6 +1052,10 @@
           "title": "Bourse Direct",
           "description": "Directly sync your PEA and securities-account positions with two-factor authentication."
         },
+        "groupamaes": {
+          "title": "Groupama Employee Savings",
+          "description": "Directly sync your PEE and PERCOL plans through the Groupama customer portal."
+        },
         "finary": {
           "title": "Finary",
           "description": "Import holdings and auto-sync with your Finary account. TOTP is handled at add-time."
@@ -1125,6 +1164,13 @@
       "tip": "Picsou only stores an encrypted session. Your password and 2FA code are never stored. Imported accounts remain attached to their PEA or securities account.",
       "cta": "Enable Bourse Direct",
       "skip": "Don't enable Bourse Direct"
+    },
+    "groupamaEs": {
+      "title": "Groupama Employee Savings is ready.",
+      "body": "After setup, sign in with your Groupama Employee Savings credentials to import your PEE and PERCOL plans.",
+      "tip": "Picsou only stores an encrypted browser session. Your password and security code are never saved.",
+      "cta": "Enable Groupama Employee Savings",
+      "skip": "Don't enable Groupama Employee Savings"
     },
     "tr": {
       "title": "Trade Republic is ready to go.",

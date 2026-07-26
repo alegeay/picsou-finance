@@ -4,7 +4,7 @@
 
 **Self-hosted personal finance dashboard**
 
-Track bank accounts, brokerage, crypto, and net worth — all in one place.
+Track bank accounts, brokerage, employee savings, crypto, and net worth — all in one place.
 
 [![License: Apache 2.0 + Commons Clause](https://img.shields.io/badge/License-Apache%202.0%20%2B%20Commons%20Clause-blue.svg)](LICENSE)
 
@@ -29,6 +29,7 @@ Track bank accounts, brokerage, crypto, and net worth — all in one place.
 - **Account aggregation** — Bank accounts (LEP, PEA, Livret, current), brokerage, crypto wallets, on-chain addresses, debts/loans
 - **Bank sync** — Enable Banking (PSD2/OAuth, 2000+ EU banks).
 - **Brokerage sync** — Trade Republic via WebSocket or CSV import, and Bourse Direct PEA/CTO positions via a local read-only sidecar
+- **Employee savings sync** — Groupama Épargne Salariale PEE/PERCOL plans and fund positions via a local read-only sidecar
 - **Crypto** — Binance exchange sync, on-chain BTC/ETH/SOL address tracking
 - **Live prices** — CoinGecko (crypto), Yahoo Finance (stocks/ETFs)
 - **Security insight** — Per-holding asset-type detection and ETF composition (top holdings, country & sector breakdowns) in the holding detail modal
@@ -38,7 +39,7 @@ Track bank accounts, brokerage, crypto, and net worth — all in one place.
 - **2FA + Remember Me** — Opt-in TOTP per user, 10 single-use recovery codes, 90-day "Remember Me" cookie with rotating tokens, "Trust this device" to skip TOTP, per-session revocation from settings.
 - **GDPR data export** — Self-service ZIP export (JSON + per-entity CSV) gated by re-authentication, rate-limited to 5/hour.
 - **Finary import** — CSV import or direct API sync
-- **i18n** — English and French
+- **i18n** — French, English, German, and Spanish
 - **Dark mode** — System/light/dark with flash-free theme switching
 
 ## Architecture
@@ -55,12 +56,12 @@ Track bank accounts, brokerage, crypto, and net worth — all in one place.
                (PSD2/OAuth)     (crypto)       (stocks/ETF)    (WebSocket)
 ```
 
-- **Ports & Adapters** — `BankConnectorPort`, `PriceProviderPort`, `TradeRepublicPort`, `BoursoPort`, etc. Swap providers without touching business logic.
+- **Ports & Adapters** — `BankConnectorPort`, `PriceProviderPort`, `TradeRepublicPort`, `GroupamaEsPort`, etc. Swap providers without touching business logic.
 - **Two-tier identity** — `AppUser` (auth) → `FamilyMember` (domain). Every entity is scoped by `member_id`; admins can act on behalf of a managed profile via `?memberId=X`.
 - **Flyway** — Versioned database migrations
 - **JWT auth** — HttpOnly cookies, SameSite=Lax (Safari iOS compatibility), refresh token rotation
 - **2FA (TOTP)** — Opt-in, with hashed recovery codes and trusted-device cookies
-- **AES-256-GCM** — Mandatory encryption for API secrets at rest (Binance, TOTP secrets, bank session tokens)
+- **AES-256-GCM** — Mandatory encryption for API secrets and reusable connector sessions at rest
 - **Rate limiting** — Bucket4j on login, MFA challenge, sync endpoints, and data export
 
 ## Tech stack
@@ -95,6 +96,7 @@ Picsou publishes pre-built, multi-arch (amd64/arm64) images to the GitHub Contai
 | `ghcr.io/zoeille/picsou-finance` | [picsou-finance](https://github.com/users/Zoeille/packages/container/package/picsou-finance) — app (frontend + backend) |
 | `ghcr.io/zoeille/picsou-finance/tr-auth` | [picsou-finance/tr-auth](https://github.com/users/Zoeille/packages/container/package/picsou-finance%2Ftr-auth) — Trade Republic auth sidecar |
 | `ghcr.io/zoeille/picsou-finance/bourse-direct-auth` | Bourse Direct login/2FA sidecar |
+| `ghcr.io/zoeille/picsou-finance/groupama-es-auth` | Groupama employee-savings login/strong-authentication and portfolio sidecar |
 
 ```bash
 docker compose -f docker/docker-compose.yml pull    # fetch the published images from GHCR
@@ -334,6 +336,7 @@ cp docker/.env.example docker/.env
 | `ENABLEBANKING_*` | Skip wizard | From your [Enable Banking dashboard](https://enablebanking.com/). The redirect URI must be `https://` |
 | `BOURSO_AUTH_URL` | Custom sidecar | Defaults to `http://bourso-auth:8001` |
 | `BOURSE_DIRECT_AUTH_URL` | Custom sidecar | Defaults to `http://bourse-direct-auth:8001` |
+| `GROUPAMA_ES_AUTH_URL` | Custom sidecar | Defaults to `http://groupama-es-auth:8001` |
 | `PICSOU_DOMAIN` | TLS profile | Hostname Caddy serves — see [step 3](#3-https-decide-before-the-first-launch) |
 | `HSTS_ENABLED` | Trusted cert | `true` only with a publicly-trusted certificate |
 

@@ -29,6 +29,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -426,5 +428,70 @@ class HistoryServiceTest {
             assertThat(point.total()).isEqualByComparingTo("-8000");
             assertThat(point.invested()).isEqualByComparingTo("2000");
         }
+    }
+
+    @Test
+    void buildIntradayHistory_groupamaKeepsProviderValueWithoutPublicPrices() {
+        Account groupama = Account.builder()
+            .id(3L)
+            .name("PEE Groupama")
+            .type(AccountType.PEE)
+            .provider(GroupamaEsSyncService.PROVIDER)
+            .currency("EUR")
+            .currentBalance(new BigDecimal("1200"))
+            .member(MEMBER)
+            .build();
+        when(accountRepository.findAllById(List.of(3L))).thenReturn(List.of(groupama));
+        when(accountService.liveBalanceEur(groupama)).thenReturn(new BigDecimal("1200"));
+        when(accountService.calculateInvestedAmount(groupama))
+            .thenReturn(new BigDecimal("1000"));
+
+        List<NetWorthIntradayPoint> result =
+            historyService.buildIntradayHistory(List.of(3L), MEMBER_ID);
+
+        assertThat(result).isNotEmpty();
+        assertThat(result).allSatisfy(point -> {
+            assertThat(point.total()).isEqualByComparingTo("1200");
+            assertThat(point.invested()).isEqualByComparingTo("1000");
+        });
+        verify(holdingRepository, never()).findByAccount_Id(3L);
+        verify(priceService, never()).getIntradayPricesEur(any(), any(), any());
+    }
+
+    @Test
+    void buildPnl_groupamaRangeNeverQueriesSyntheticMarketData() {
+        LocalDate fromDate = LocalDate.now().minusMonths(1);
+        Account groupama = Account.builder()
+            .id(3L)
+            .name("PERCOL Groupama")
+            .type(AccountType.PERCOL)
+            .provider(GroupamaEsSyncService.PROVIDER)
+            .currency("EUR")
+            .currentBalance(new BigDecimal("1200"))
+            .member(MEMBER)
+            .build();
+        AccountHolding holding = AccountHolding.builder()
+            .account(groupama)
+            .ticker("GES_FCPE_1")
+            .quantity(BigDecimal.ONE)
+            .averageBuyIn(new BigDecimal("1000"))
+            .build();
+        when(accountRepository.findAllById(List.of(3L))).thenReturn(List.of(groupama));
+        when(holdingRepository.findByAccount_Id(3L)).thenReturn(List.of(holding));
+        when(accountService.liveBalanceEur(groupama)).thenReturn(new BigDecimal("1200"));
+        when(accountService.calculateInvestedAmount(groupama))
+            .thenReturn(new BigDecimal("1000"));
+
+        PnlResponse result = historyService.buildPnl(
+            List.of(3L),
+            MEMBER_ID,
+            fromDate
+        );
+
+        assertThat(result.pnl()).isEqualByComparingTo("200");
+        assertThat(result.rangePnl()).isNull();
+        verify(priceSnapshotRepository, never())
+            .findLatestByTickerBeforeOrOnDate(any(), any());
+        verify(priceService, never()).getPriceEur(any());
     }
 }

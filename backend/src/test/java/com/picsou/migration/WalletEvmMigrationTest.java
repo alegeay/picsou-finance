@@ -268,7 +268,7 @@ class WalletEvmMigrationTest {
 
     @Test
     @Order(Integer.MAX_VALUE - 2)
-    void latestSchema_hardensAndBackfillsOnlyReconciledBourseDirectData() throws Exception {
+    void latestSchema_hardensProviderSessionsAndBackfillsOnlyReconciledBrokerData() throws Exception {
         migrateTo("59");
         long memberId;
         long reconciledAccountId;
@@ -348,6 +348,65 @@ class WalletEvmMigrationTest {
             "SELECT provider_value_eur FROM account_holding WHERE account_id = " + ethAccountId))
             .isEqualByComparingTo("1900");
         assertThat(queryLong("SELECT COUNT(*) FROM bourse_direct_session WHERE member_id = " + memberId))
+            .isZero();
+
+        migrateTo("64");
+
+        long groupamaMemberId;
+        try (Connection conn = connect()) {
+            groupamaMemberId = insertReturningId(conn,
+                "INSERT INTO family_member (display_name) VALUES ('Groupama ES') RETURNING id");
+            exec(conn, "INSERT INTO account "
+                + "(name, type, provider, currency, current_balance, external_account_id, is_manual, member_id) "
+                + "VALUES "
+                + "('PEE Groupama', 'PEE'::account_type, 'Groupama Épargne Salariale', 'EUR', 1250, "
+                + "'ges_pee', false, " + groupamaMemberId + "), "
+                + "('PERCOL Groupama', 'PERCOL'::account_type, 'Groupama Épargne Salariale', 'EUR', 2750, "
+                + "'ges_percol', false, " + groupamaMemberId + ")");
+            exec(conn, "INSERT INTO groupama_es_session (member_id, session_state) VALUES ("
+                + groupamaMemberId + ", 'encrypted-state')");
+        }
+
+        assertThat(queryLong(
+            "SELECT COUNT(*) FROM pg_enum e "
+                + "JOIN pg_type t ON t.oid = e.enumtypid "
+                + "WHERE t.typname = 'account_type' AND e.enumlabel IN ('PEE', 'PERCOL')"))
+            .isEqualTo(2L);
+        assertThat(queryLong(
+            "SELECT COUNT(*) FROM account WHERE member_id = " + groupamaMemberId
+                + " AND type IN ('PEE'::account_type, 'PERCOL'::account_type)"))
+            .isEqualTo(2L);
+        assertThat(queryString(
+            "SELECT value FROM app_setting WHERE setting_key = 'integration.groupamaes.enabled'"))
+            .isEqualTo("false");
+        assertThat(queryString(
+            "SELECT sync_status FROM groupama_es_session WHERE member_id = " + groupamaMemberId))
+            .isEqualTo("IDLE");
+        assertThat(queryString(
+            "SELECT is_active::text FROM groupama_es_session WHERE member_id = " + groupamaMemberId))
+            .isEqualTo("true");
+
+        try (Connection conn = connect()) {
+            exec(conn, "UPDATE groupama_es_session SET sync_status = 'FAILED', "
+                + "last_sync_error = 'ACTION_REQUIRED' WHERE member_id = " + groupamaMemberId);
+            assertThatThrownBy(() -> exec(conn,
+                "UPDATE groupama_es_session SET last_sync_error = 'UNKNOWN_ERROR' WHERE member_id = "
+                    + groupamaMemberId))
+                .isInstanceOf(SQLException.class);
+            assertThatThrownBy(() -> exec(conn,
+                "UPDATE groupama_es_session SET sync_status = 'SUCCESS' WHERE member_id = "
+                    + groupamaMemberId))
+                .isInstanceOf(SQLException.class);
+            exec(conn, "UPDATE groupama_es_session SET sync_status = 'IDLE', "
+                + "last_sync_error = NULL WHERE member_id = " + groupamaMemberId);
+            assertThatThrownBy(() -> exec(conn,
+                "UPDATE groupama_es_session SET sync_status = 'FAILED' WHERE member_id = "
+                    + groupamaMemberId))
+                .isInstanceOf(SQLException.class);
+            exec(conn, "DELETE FROM family_member WHERE id = " + groupamaMemberId);
+        }
+
+        assertThat(queryLong("SELECT COUNT(*) FROM groupama_es_session WHERE member_id = " + groupamaMemberId))
             .isZero();
     }
 

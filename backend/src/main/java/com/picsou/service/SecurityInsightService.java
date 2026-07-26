@@ -48,6 +48,9 @@ public class SecurityInsightService {
             return new SecurityInsightResponse(ticker, "UNKNOWN", null);
         }
         String upper = ticker.toUpperCase();
+        if (PriceService.isProviderInternalTicker(upper)) {
+            return new SecurityInsightResponse(upper, "UNKNOWN", null);
+        }
 
         CachedInsight cached = cache.get(upper);
         if (cached != null && !cached.isExpired()) {

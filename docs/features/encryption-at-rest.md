@@ -1,10 +1,15 @@
 # Feature: Encryption at Rest
 
-> Last updated: 2026-04-08
+> Last updated: 2026-07-26 (browser-backed connector sessions)
 
 ## Context
 
-Picsou stores sensitive credentials in PostgreSQL: crypto exchange API keys/secrets, Trade Republic session/refresh tokens, and bank sync session IDs. A database compromise (backup leak, SQL injection, host access) would expose these credentials, granting attackers access to financial accounts. All sensitive fields are encrypted at the application layer using AES-256-GCM before storage.
+Picsou stores sensitive credentials in PostgreSQL: crypto exchange API
+keys/secrets, Trade Republic session/refresh tokens and reusable browser storage
+states for Bourse Direct and Groupama employee savings. A database compromise
+(backup leak, SQL injection, host access) would otherwise expose access to
+financial portals. All sensitive fields are encrypted at the application layer
+using AES-256-GCM before storage.
 
 ## How it works
 
@@ -27,6 +32,8 @@ Picsou stores sensitive credentials in PostgreSQL: crypto exchange API keys/secr
 | Crypto exchange API secret | `CryptoExchangeSession` | `api_secret` | V9 (initial) |
 | Trade Republic session token | `TradeRepublicSession` | `session_token` | V15 (2026-04-08) |
 | Trade Republic refresh token | `TradeRepublicSession` | `refresh_token` | V15 (2026-04-08) |
+| Bourse Direct browser storage state | `BourseDirectSession` | `session_state` | V59 (2026-07-21) |
+| Groupama ES browser storage state | `GroupamaEsSession` | `session_state` | V64 (2026-07-26) |
 
 ### What is NOT encrypted (and why)
 
@@ -40,6 +47,10 @@ Picsou stores sensitive credentials in PostgreSQL: crypto exchange API keys/secr
 - `backend/src/main/java/com/picsou/config/CryptoEncryption.java` -- AES-256-GCM encrypt/decrypt, key validation at startup
 - `backend/src/main/java/com/picsou/service/CryptoExchangeSyncService.java` -- Encrypts apiKey + apiSecret on store, decrypts on read
 - `backend/src/main/java/com/picsou/service/TradeRepublicSyncService.java` -- Encrypts session/refresh tokens on store, decrypts on read
+- `backend/src/main/java/com/picsou/service/BourseDirectSyncService.java` --
+  encrypts/decrypts the complete browser storage state
+- `backend/src/main/java/com/picsou/service/GroupamaEsSyncService.java` --
+  encrypts/decrypts the complete browser storage state
 - `backend/src/main/resources/db/migration/V15__widen_encrypted_columns.sql` -- Widens columns for encrypted values, truncates legacy plaintext
 
 ### Flow
@@ -80,7 +91,9 @@ Read credential:
 ## Gotchas / Pitfalls
 
 - **Key is mandatory**: The app will not start without `CRYPTO_ENCRYPTION_KEY`. Generate with: `openssl rand -base64 32`.
-- **Lost key = re-enter credentials**: If the encryption key is lost, encrypted data cannot be recovered. The user must re-add crypto exchanges and re-authenticate Trade Republic.
+- **Lost key = re-enter credentials**: If the encryption key is lost, encrypted
+  data cannot be recovered. The user must re-add crypto exchanges and
+  re-authenticate Trade Republic, Bourse Direct and Groupama employee savings.
 - **V15 truncates existing sessions**: After deploying V15, all crypto exchange sessions and TR sessions are cleared. Users must re-enter API keys and re-authenticate TR. This is a one-time migration cost.
 - **Column widths**: Encrypted values are ~1.4x larger than plaintext (Base64 overhead + 12-byte IV + 16-byte tag). Columns are sized with headroom: `api_key` 500, `api_secret` 500, `session_token` 2000, `refresh_token` 4000.
 - **No key rotation**: A single key is used for all encryption. If compromised, all secrets must be re-encrypted. No versioning mechanism exists yet.
@@ -96,3 +109,4 @@ Read credential:
 - Related ADR: [AES-256-GCM for crypto secrets](../decisions/2026-03-01-aes-gcm-crypto-secrets.md)
 - Related feature: [Crypto tracking](./crypto-tracking.md)
 - Related feature: [Trade Republic](./trade-republic.md)
+- Related feature: [Groupama employee savings](./groupama-employee-savings.md)

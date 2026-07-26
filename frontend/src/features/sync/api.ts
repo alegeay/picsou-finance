@@ -15,6 +15,8 @@ import type {
   BoursoAuthInitResponse,
   BourseDirectSessionStatus,
   BourseDirectAuthInitResponse,
+  GroupamaEsSessionStatus,
+  GroupamaEsAuthInitResponse,
 } from '@/types/api'
 
 // --- Bank Sync (Enable Banking) ---
@@ -176,6 +178,32 @@ export const bourseDirectApi = {
       .then(r => r.data),
 
   clearSession: () => api.delete('/bourse-direct/session'),
+}
+
+// --- Groupama Épargne Salariale ---
+
+export const groupamaEsApi = {
+  initiateAuth: (login: string, password: string) =>
+    api
+      .post<GroupamaEsAuthInitResponse>('/groupama-es/auth/initiate', { login, password })
+      .then(r => r.data),
+
+  completeAuth: (processId: string, code: string) =>
+    api
+      .post<GroupamaEsSessionStatus>('/groupama-es/auth/complete', { processId, code })
+      .then(r => r.data),
+
+  sync: () =>
+    api.post<GroupamaEsSessionStatus>('/groupama-es/sync').then(r => r.data),
+
+  getStatus: () =>
+    api
+      .get<GroupamaEsSessionStatus>('/groupama-es/status', {
+        skipGlobalErrorRedirect: true,
+      })
+      .then(r => r.data),
+
+  clearSession: () => api.delete('/groupama-es/session'),
 }
 
 // --- Finary ---

@@ -6,6 +6,8 @@ export const ACCOUNT_TYPES: { value: AccountType; labelKey: string }[] = [
   { value: 'LEP', labelKey: 'accountTypes.lep' },
   { value: 'PEA', labelKey: 'accountTypes.pea' },
   { value: 'COMPTE_TITRES', labelKey: 'accountTypes.compteTitres' },
+  { value: 'PEE', labelKey: 'accountTypes.pee' },
+  { value: 'PERCOL', labelKey: 'accountTypes.percol' },
   { value: 'CRYPTO', labelKey: 'accountTypes.crypto' },
   { value: 'REAL_ESTATE', labelKey: 'accountTypes.realEstate' },
   { value: 'LOAN', labelKey: 'accountTypes.loan' },

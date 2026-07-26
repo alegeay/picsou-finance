@@ -1,10 +1,10 @@
 # Feature: Live Prices in Holdings
 
-> Last updated: 2026-07-21
+> Last updated: 2026-07-26 (authoritative Groupama FCPE valuations)
 
 ## Context
 
-Holdings (PEA, Compte-Titres, Crypto) display prices that are only updated during a full sync. When a user navigates to an account detail page, the displayed prices may be stale — sometimes hours old. The backend already exposes `GET /api/prices?tickers=...` via `PriceController` which refreshes the cache and returns live EUR prices. This feature integrates those live prices into the holdings table on page navigation, and propagates live portfolio values (with PnL) to Goals progress, Dashboard distribution, and the AccountDetail balance card.
+Holdings (PEA, Compte-Titres, PEE, PERCOL, Crypto) display prices that are only updated during a full sync. When a user navigates to an account detail page, the displayed prices may be stale — sometimes hours old. The backend already exposes `GET /api/prices?tickers=...` via `PriceController` which refreshes the cache and returns live EUR prices. This feature integrates those live prices into the holdings table on page navigation, and propagates live portfolio values (with PnL) to Goals progress, Dashboard distribution, and the AccountDetail balance card.
 
 ## How it works
 
@@ -33,6 +33,14 @@ HoldingsTable renders with live prices
 If the prices API fails, the hook keeps the backend response. For Bourse Direct
 holdings that response can include the last reconciled broker valuation in EUR,
 even when Yahoo cannot resolve the native quote.
+
+Groupama employee-savings supports are a deliberate no-query path. Synthetic
+`GES_` identifiers are filtered out before `/api/prices`; the hook keeps the
+reconciled provider EUR value, unit value and P&L returned by the backend.
+The same frontend guard disables price-history and security-insight queries for
+those identifiers. As a defense in depth, backend `PriceService` rejects
+`GES_` spot, bulk, backfill and intraday requests before any public provider is
+called, while `SecurityInsightService` returns `UNKNOWN` locally.
 
 ### Live-price recompute formula (single source of truth)
 
@@ -89,6 +97,11 @@ the last complete broker account total instead of a partial
 position: Yahoo EUR value when available, otherwise the broker's reconciled EUR
 value. `currentPrice` remains tagged with its explicit `quoteCurrency`.
 
+For Groupama PEE/PERCOL accounts, `liveBalanceEur()` returns the reconciled
+stored plan total directly and `HoldingResponse` uses the connector's explicit
+EUR fields. Public quote lookup is skipped because FCPE/provider support IDs are
+not public tickers.
+
 Used by:
 - `GoalService.toProgressResponse()` — sums `liveBalanceEur()` across linked accounts for `currentTotal`
 - `DashboardService.buildDistribution()` — uses live values from pre-loaded `holdingsByAccount` map for distribution percentages
@@ -97,6 +110,11 @@ Used by:
 ### Historical net-worth chart (`HistoryService.buildHistory`)
 
 For each past date, both `total` and `invested` are read from `balance_snapshot` and forward-filled per account from the latest row on or before that date. Loans contribute their negative balance to `total` and zero to `invested`. Today's point is replaced with live values from `liveBalanceEur()` and `calculateInvestedAmount()` so intraday changes are visible immediately. The `invested_amount` column (added in V18, `NOT NULL`) is written by both the daily scheduler and every sync path via `AccountService.upsertSnapshot`.
+
+In the 24-hour chart, Groupama PEE/PERCOL accounts keep their latest
+reconciled provider value and invested basis constant across the hourly points.
+Their holdings are excluded from public intraday and range-price lookup; the
+connector-reported absolute P&L remains the authoritative performance signal.
 
 ### Key files
 
@@ -122,14 +140,27 @@ For each past date, both `total` and `invested` are read from `balance_snapshot`
 - **No polling**: Prices refresh only on navigation (TanStack Query stale time of 2 min). There is no auto-refresh or polling interval.
 - **Yahoo Finance is unofficial**: See [price-service.md](./price-service.md) gotchas. A stored quote is displayed only with its explicit `quoteCurrency`; it is never multiplied as EUR when that currency is unknown.
 - **Bourse Direct has an EUR fallback**: `provider_value_eur` and `provider_pnl_eur` are accepted only as part of a fully reconciled broker snapshot. Other connectors still return `null` when neither Yahoo nor a currency-safe provider value exists.
+- **Groupama values are authoritative**: `GES_` supports come only from a
+  fully reconciled EUR snapshot. Backend and frontend both bypass every public
+  price and security-insight provider for them; do not remove either guard.
 - **`AccountService.toResponse()` computes a live balance**: for Bourse Direct it falls back to the complete stored broker total if even one Yahoo price is unavailable.
-- **`liveBalanceEur()` triggers price lookups**: Each call fetches holdings then queries `PriceService` per ticker. Don't call in tight loops. The Dashboard pre-loads holdings into a map to avoid N+1; Goals calls it per-account in the goal's account list (typically small).
+- **`liveBalanceEur()` normally triggers price lookups**: Each public-market
+  account fetches holdings then queries `PriceService` per ticker. Groupama is
+  the exception and returns its provider total without those calls. Don't call
+  the public-market path in tight loops.
 - **The account detail page does not re-sum holdings**: it displays the backend's `currentBalanceEur`, avoiding disagreement with cash and broker fallback rules.
 
 ## Tests
 
 - Manual: navigate to a PEA/CT/Crypto account, verify `/api/prices` call in network tab and live prices in table
 - Manual: navigate to a checking/savings account, verify no `/api/prices` call
+- Automated: `frontend/src/features/accounts/hooks.test.tsx` verifies Groupama
+  support values remain unchanged and no public price, history or insight
+  request is issued.
+- Automated: `PriceServiceTest`, `SecurityInsightServiceTest` and
+  `HistoryServiceTest` verify that `GES_` identifiers never reach public
+  providers and that the 24-hour chart retains provider valuation and invested
+  basis.
 
 ## Links
 

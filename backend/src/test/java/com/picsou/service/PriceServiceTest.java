@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -26,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -109,6 +111,25 @@ class PriceServiceTest {
         when(priceSnapshotRepository.findByTickerAndDate(any(), any())).thenReturn(Optional.empty());
 
         assertThat(priceService.backfillHistoricalPrices(Set.of("AAPL"), from)).isEqualTo(1);
+    }
+
+    @Test
+    void providerInternalGroupamaIdsNeverReachMarketDataProviders() {
+        LocalDate from = LocalDate.of(2026, 1, 1);
+        LocalDateTime intradayFrom = LocalDateTime.of(2026, 7, 25, 12, 0);
+        LocalDateTime intradayTo = intradayFrom.plusDays(1);
+
+        assertThat(priceService.getPriceEur("GES_FCPE_1")).isNull();
+        assertThat(priceService.refreshPrices(Set.of("ges_fcpe_1"))).isEmpty();
+        assertThat(priceService.backfillHistoricalPrices(Set.of("GES_FCPE_1"), from))
+            .isZero();
+        assertThat(priceService.getIntradayPricesEur(
+            "GES_FCPE_1",
+            intradayFrom,
+            intradayTo
+        )).isEmpty();
+
+        verifyNoInteractions(coinGecko, yahoo, priceSnapshotRepository);
     }
 
     /** Runs the backfill and fails loudly if it throws — the ApplicationRunner contract. */
