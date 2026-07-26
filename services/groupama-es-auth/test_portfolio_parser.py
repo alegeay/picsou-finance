@@ -189,6 +189,43 @@ class PortfolioParserTest(unittest.TestCase):
             ["PERCOL", "PEE"],
         )
 
+    def test_parses_pee_and_percol_together(self):
+        parsed = parse_portfolio(page(
+            account(
+                "Plan d'épargne entreprise (PEE)",
+                "100,00 €",
+                "<tr><td>Support entreprise</td><td>100,00 €</td><td></td></tr>",
+            ),
+            account(
+                "Épargne retraite - PERCOL",
+                "200,00 €",
+                "<tr><td>Support retraite</td><td>200,00 €</td><td></td></tr>",
+            ),
+        ))
+
+        self.assertEqual([item["type"] for item in parsed], ["PEE", "PERCOL"])
+        self.assertEqual([item["balanceEur"] for item in parsed], [Decimal("100"), Decimal("200")])
+
+    def test_same_support_label_with_distinct_portal_links_is_not_merged(self):
+        rows = """
+          <tr>
+            <td><a href="/groupama-es/espace-client/fr/epargnants/supports/fiche-du-support.html?id=one">Fonds équilibré</a></td>
+            <td>100,00 €</td><td></td>
+          </tr>
+          <tr>
+            <td><a href="/groupama-es/espace-client/fr/epargnants/supports/fiche-du-support.html?id=two">Fonds équilibré</a></td>
+            <td>200,00 €</td><td></td>
+          </tr>
+        """
+
+        parsed = parse_portfolio(page(account("Épargne entreprise", "300,00 €", rows)))
+
+        self.assertEqual(len(parsed[0]["positions"]), 2)
+        self.assertEqual(
+            [item["currentValueEur"] for item in parsed[0]["positions"]],
+            [Decimal("100"), Decimal("200")],
+        )
+
     def test_skips_an_unsupported_blocked_current_account(self):
         ccb = account(
             "Compte courant bloqué",

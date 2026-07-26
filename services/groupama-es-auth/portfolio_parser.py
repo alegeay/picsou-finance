@@ -256,8 +256,12 @@ def _position(
     details_url: str | None,
     form_param: str | None,
 ) -> dict[str, Any]:
+    # Support labels are presentation text and are not guaranteed to be
+    # unique. Prefer the portal's stable support URL (or form parameter) so
+    # two distinct supports with the same label are not merged together.
+    identity = details_url or form_param or label
     return {
-        "symbol": _stable_token("GES", label),
+        "symbol": _stable_token("GES", identity),
         "label": label[:200],
         # The details-page enrichment replaces this neutral valuation unit
         # with the real unit value and derived number of units when exposed.

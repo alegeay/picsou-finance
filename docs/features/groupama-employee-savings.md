@@ -177,6 +177,13 @@ This rule is enforced centrally as well as in the account view:
   composition providers;
 - frontend account hooks do not request live prices, price history or security
   insights for these identifiers;
+- the frontend keeps these identifiers for reconciliation and row identity but
+  does not present their opaque hash as a user-facing ticker: portfolio badges
+  use the holding name and the account provider, while the holdings table shows
+  an em dash and exposes the technical identifier as a tooltip;
+- support identifiers prefer the portal's support-detail URL (or form
+  parameter) over the display label, preventing distinct same-named supports
+  from being merged;
 - the 24-hour history carries the last reconciled Groupama plan value and
   invested amount as constant provider data instead of inventing an intraday
   market series.
@@ -282,8 +289,10 @@ commit, test fixture or chat.
 - `backend/src/main/java/com/picsou/controller/GroupamaEsController.java` — REST
   endpoints and auth throttling
 - `frontend/src/components/sync/GroupamaEsPanel.tsx` — shared connection UI
-- `backend/src/main/resources/db/migration/V64__groupama_employee_savings.sql`
-  — PEE/PERCOL types and encrypted session state
+- `backend/src/main/resources/db/migration/V63__groupama_es_account_types.sql`
+  — PEE/PERCOL account types
+- `backend/src/main/resources/db/migration/V64__groupama_es_session.sql`
+  — encrypted session and synchronization state
 
 ## Related decisions
 

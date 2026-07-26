@@ -15,6 +15,7 @@ export interface PortfolioLine {
   ticker: string | null
   quantity: number
   accountName: string
+  accountProvider: string | null
   accountType: Account['type']
   accountColor: string
   valueEur: number
@@ -36,8 +37,11 @@ const HOLDING_ACCOUNT_TYPES: Account['type'][] = [
 
 // Groupama employee-savings supports use stable provider-side ids, not public
 // market tickers. Their backend values are complete, reconciled EUR snapshots.
+export const isSyntheticTicker = (ticker: string | null | undefined): boolean =>
+  ticker?.startsWith('GES_') ?? false
+
 const canUsePublicPrice = (ticker: string | null): ticker is string =>
-  ticker != null && ticker !== 'EUR' && !ticker.startsWith('GES_')
+  ticker != null && ticker !== 'EUR' && !isSyntheticTicker(ticker)
 
 // Single source of truth: recompute the (value, cost, pnl, pct) trio from a live price.
 // Keeps all four derived numbers consistent with the same price snapshot.
@@ -75,6 +79,7 @@ export function usePortfolio() {
               ticker: h.ticker,
               quantity: h.quantity,
               accountName: account.name,
+              accountProvider: account.provider,
               accountType: account.type,
               accountColor: account.color,
               valueEur: h.currentValueEur ?? 0,
@@ -131,6 +136,7 @@ export function usePortfolio() {
           ticker: 'EUR',
           quantity: 0,
           accountName: cashAccounts.map(a => a.name).join(', '),
+          accountProvider: null,
           accountType: cashAccounts[0].type,
           accountColor: '#22c55e',
           valueEur: cashAccounts.reduce((sum, a) => sum + a.currentBalanceEur, 0),

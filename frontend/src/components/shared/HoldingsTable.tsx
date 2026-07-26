@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import type { HoldingResponse } from '@/types/api'
+import { isSyntheticTicker } from '@/features/accounts/hooks'
 import { CurrencyDisplay } from '@/components/shared/CurrencyDisplay'
 import { PriceFreshnessDot } from '@/components/shared/PriceFreshnessDot'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -49,7 +50,12 @@ export function HoldingsTable({ holdings, onEdit, onDelete }: HoldingsTableProps
           <TableBody>
             {holdings.map((h) => (
               <TableRow key={h.ticker}>
-                <TableCell className="font-mono font-medium">{h.ticker}</TableCell>
+                <TableCell
+                  className="font-mono font-medium"
+                  title={isSyntheticTicker(h.ticker) ? h.ticker : undefined}
+                >
+                  {isSyntheticTicker(h.ticker) ? '\u2014' : h.ticker}
+                </TableCell>
                 <TableCell>{h.name ?? h.ticker}</TableCell>
                 <TableCell className="text-right">{h.quantity}</TableCell>
                 <TableCell className="text-right">

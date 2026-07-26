@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { usePortfolio, type PortfolioLine } from '@/features/accounts/hooks'
+import { isSyntheticTicker, usePortfolio, type PortfolioLine } from '@/features/accounts/hooks'
 import { CurrencyDisplay } from '@/components/shared/CurrencyDisplay'
 import { PriceFreshnessDot } from '@/components/shared/PriceFreshnessDot'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -41,7 +41,9 @@ function PortfolioItem({ line }: { line: PortfolioLine }) {
         className="flex size-12 shrink-0 items-center justify-center rounded-lg border text-sm font-semibold"
         style={{ borderColor: line.accountColor }}
       >
-        {line.ticker ? line.ticker.slice(0, 4) : line.name.slice(0, 3).toUpperCase()}
+        {line.ticker && !isSyntheticTicker(line.ticker)
+          ? line.ticker.slice(0, 4)
+          : line.name.slice(0, 3).toUpperCase()}
       </div>
 
       {/* Info */}
@@ -50,6 +52,9 @@ function PortfolioItem({ line }: { line: PortfolioLine }) {
         {line.ticker && (
           <p className="text-sm text-muted-foreground">
             {line.accountName}
+            {isSyntheticTicker(line.ticker) && line.accountProvider && (
+              <> · {line.accountProvider}</>
+            )}
           </p>
         )}
       </div>
