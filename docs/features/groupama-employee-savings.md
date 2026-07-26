@@ -61,6 +61,12 @@ dialog and explicitly chooses "Refuser les cookies". It never forces a click
 through a visible overlay; an unknown consent dialog fails safely as
 `UPSTREAM_FORMAT_CHANGED`.
 
+The login control invokes Enterprise reCAPTCHA asynchronously. The sidecar
+waits until `grecaptcha.enterprise.execute()` is available before clicking and
+normalizes the browser's automation signals used by the portal's risk score.
+Remaining on the login page without an explicit visible credential error is
+reported as `UPSTREAM_UNAVAILABLE`, never as `INVALID_CREDENTIALS`.
+
 The login, password, OTP and raw portfolio HTML are never logged or stored.
 Cookies are never logged and are persisted only inside the encrypted Playwright
 storage state. Pending browser resources are closed after success, failure,

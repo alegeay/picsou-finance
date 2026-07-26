@@ -9,15 +9,18 @@ from fastapi.testclient import TestClient
 from playwright.async_api import async_playwright
 
 from main import (
+    LOGIN_URL,
     MFA_PATH_FRAGMENT,
     PENDING_TTL_SECONDS,
     ROOT_PATH,
     _auth_outcome,
     _cleanup_expired,
     _close_all_pending,
+    _configure_context,
     _enrich_positions,
     _fill_otp,
     _has_portal_session_cookie,
+    _launch_browser,
     _pending,
     _pending_lock,
     _submit_login,
@@ -123,6 +126,86 @@ class PendingAuthenticationLifecycleTest(unittest.IsolatedAsyncioTestCase):
 
 
 class BrowserSelectorsTest(unittest.IsolatedAsyncioTestCase):
+    async def test_browser_masks_automation_signals(self):
+        async with async_playwright() as playwright:
+            browser = await _launch_browser(playwright)
+            context = await browser.new_context(locale="fr-FR")
+            await _configure_context(context)
+            page = await context.new_page()
+            try:
+                fingerprint = await page.evaluate("""
+                  () => ({
+                    webdriver: navigator.webdriver,
+                    languages: navigator.languages,
+                    hasChrome: Boolean(window.chrome),
+                  })
+                """)
+
+                self.assertIsNone(fingerprint["webdriver"])
+                self.assertEqual(fingerprint["languages"], ["fr-FR", "fr"])
+                self.assertTrue(fingerprint["hasChrome"])
+            finally:
+                await context.close()
+                await browser.close()
+
+    async def test_login_timeout_without_visible_error_is_not_credentials(self):
+        async with async_playwright() as playwright:
+            browser = await playwright.chromium.launch(headless=True)
+            context = await browser.new_context()
+            page = await context.new_page()
+            await page.route(
+                LOGIN_URL,
+                lambda route: route.fulfill(
+                    status=200,
+                    content_type="text/html",
+                    body="<p>Authentication is still in progress</p>",
+                ),
+            )
+            try:
+                await page.goto(LOGIN_URL)
+
+                outcome = await _auth_outcome(
+                    context,
+                    page,
+                    timeout_seconds=0.1,
+                )
+
+                self.assertEqual(outcome, "UPSTREAM_UNAVAILABLE")
+            finally:
+                await context.close()
+                await browser.close()
+
+    async def test_visible_login_error_is_invalid_credentials(self):
+        async with async_playwright() as playwright:
+            browser = await playwright.chromium.launch(headless=True)
+            context = await browser.new_context()
+            page = await context.new_page()
+            await page.route(
+                LOGIN_URL,
+                lambda route: route.fulfill(
+                    status=200,
+                    content_type="text/html",
+                    body=(
+                        '<div role="alert">'
+                        "Identifiant ou mot de passe invalide"
+                        "</div>"
+                    ),
+                ),
+            )
+            try:
+                await page.goto(LOGIN_URL)
+
+                outcome = await _auth_outcome(
+                    context,
+                    page,
+                    timeout_seconds=0.5,
+                )
+
+                self.assertEqual(outcome, "INVALID_CREDENTIALS")
+            finally:
+                await context.close()
+                await browser.close()
+
     async def test_unknown_visible_cookie_banner_fails_safely(self):
         async with async_playwright() as playwright:
             browser = await playwright.chromium.launch(headless=True)
@@ -176,6 +259,13 @@ class BrowserSelectorsTest(unittest.IsolatedAsyncioTestCase):
                   </form>
                   <script>
                     window.loginSubmitted = false;
+                    setTimeout(() => {
+                      window.grecaptcha = {
+                        enterprise: {
+                          execute: () => Promise.resolve("token"),
+                        },
+                      };
+                    }, 100);
                     document.querySelector(
                       '[aria-label="Refuser les cookies"]'
                     ).addEventListener("click", event => {
@@ -186,7 +276,9 @@ class BrowserSelectorsTest(unittest.IsolatedAsyncioTestCase):
                     document.querySelector("#login-submit a")
                       .addEventListener("click", event => {
                         event.preventDefault();
-                        window.loginSubmitted = true;
+                        window.loginSubmitted = Boolean(
+                          window.grecaptcha?.enterprise?.execute
+                        );
                       });
                   </script>
                 """)
@@ -209,6 +301,13 @@ class BrowserSelectorsTest(unittest.IsolatedAsyncioTestCase):
                     <input id="_pwduser" name="_cm_pwd" type="password">
                     <span id="login-submit"><a href="#">Se connecter</a></span>
                   </form>
+                  <script>
+                    window.grecaptcha = {
+                      enterprise: {
+                        execute: () => Promise.resolve("token"),
+                      },
+                    };
+                  </script>
                 """)
 
                 await _submit_login(page, "customer", "secret")

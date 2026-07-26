@@ -57,6 +57,13 @@ AUTH_TIMEOUT_SECONDS = 40
 ACCOUNT_TIMEOUT_SECONDS = 45
 MAX_DETAIL_REQUESTS = 50
 DETAIL_ENRICHMENT_BUDGET_SECONDS = 60
+RECAPTCHA_READY_TIMEOUT_MS = 15_000
+LAUNCH_ARGS = ["--disable-blink-features=AutomationControlled"]
+_ANTIBOT_INIT_JS = """
+Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+Object.defineProperty(navigator, 'languages', { get: () => ['fr-FR', 'fr'] });
+if (!window.chrome) { window.chrome = { runtime: {} }; }
+"""
 
 _pending: dict[str, dict[str, Any]] = {}
 _pending_lock = asyncio.Lock()
@@ -231,6 +238,33 @@ async def _close_all_pending() -> None:
         await _dispose_pending_state(state)
 
 
+async def _launch_browser(playwright: Playwright) -> Browser:
+    return await playwright.chromium.launch(headless=True, args=LAUNCH_ARGS)
+
+
+async def _configure_context(context: BrowserContext) -> None:
+    await context.add_init_script(_ANTIBOT_INIT_JS)
+
+
+async def _wait_for_recaptcha_ready(page: Page) -> None:
+    try:
+        await page.wait_for_function(
+            "() => !!(window.grecaptcha && window.grecaptcha.enterprise "
+            "&& typeof window.grecaptcha.enterprise.execute === 'function')",
+            timeout=RECAPTCHA_READY_TIMEOUT_MS,
+        )
+        return
+    except PlaywrightTimeoutError:
+        pass
+    try:
+        await page.wait_for_load_state(
+            "networkidle",
+            timeout=RECAPTCHA_READY_TIMEOUT_MS,
+        )
+    except PlaywrightTimeoutError:
+        pass
+
+
 async def _first_visible(page: Page, selectors: list[str], timeout: int = 500):
     for selector in selectors:
         locator = page.locator(selector).first
@@ -351,8 +385,6 @@ async def _auth_outcome(
     path = urlsplit(page.url).path.lower()
     if MFA_PATH_FRAGMENT in path:
         return "ACTION_REQUIRED"
-    if "/identification/authentification" in path:
-        return "INVALID_CREDENTIALS"
     return "UPSTREAM_UNAVAILABLE"
 
 
@@ -404,6 +436,7 @@ async def _submit_login(page: Page, login: str, password: str) -> None:
         raise HTTPException(status_code=502, detail="UPSTREAM_FORMAT_CHANGED")
     await login_input.fill(login)
     await password_input.fill(password)
+    await _wait_for_recaptcha_ready(page)
     await submit.click(no_wait_after=True)
 
 
@@ -564,8 +597,12 @@ async def initiate(req: InitiateRequest) -> dict:
     context: BrowserContext | None = None
     try:
         playwright = await async_playwright().start()
-        browser = await playwright.chromium.launch(headless=True)
-        context = await browser.new_context(locale="fr-FR")
+        browser = await _launch_browser(playwright)
+        context = await browser.new_context(
+            locale="fr-FR",
+            timezone_id="Europe/Paris",
+        )
+        await _configure_context(context)
         page = await context.new_page()
         await page.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=30_000)
         await _submit_login(page, req.login, req.password)
@@ -661,11 +698,13 @@ async def accounts(req: AccountsRequest) -> list[AccountPayload]:
     context: BrowserContext | None = None
     try:
         playwright = await async_playwright().start()
-        browser = await playwright.chromium.launch(headless=True)
+        browser = await _launch_browser(playwright)
         context = await browser.new_context(
             storage_state=storage_state,
             locale="fr-FR",
+            timezone_id="Europe/Paris",
         )
+        await _configure_context(context)
         page = await context.new_page()
         await page.goto(
             ACCOUNTS_URL,
